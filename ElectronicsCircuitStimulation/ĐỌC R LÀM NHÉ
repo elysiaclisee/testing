@@ -1,0 +1,26 @@
+Ae có cao kiến gì thì comment lên github/viết vào đây r push lên để đỡ trôi nhé. Tạm thời thì:
+file main t đang để troll troll test th nên ae cứ xóa nhé:>
+
+1. dùng javafx thay vì swing vì:
++ dễ xử lý thao tác ng dùng (click kéo thả vv)
++ các component mình dùng vector drawing thay vì png cho nhẹ, javafx vẽ dễ hơn
++ có scenebuilder tương thích để thiết kế dễ hơn (dù app mình cx đơn giản th)
+Ae chịu khó mày mò setup javafx trong mấy cái link trên teams TA up nhe
+
+2. ý tưởng 
++ app:
+- trên màn hình sẽ có 1 cái board (hình chữ nhật th) để mình kéo mấy cái component vào
+- có 1 cái toolbox ở dưới có 3 cái: tụ điện, điện trở vs bóng đèn
+mình ấn vào cái nào trên toolbox thì nó tạo 1 cái clone cho mình kéo vào board
+- kéo xong thì để nối t đang nghĩ là ấn chọn 2 component thì sẽ hiện ra 2 option là mắc nối tiếp hoặc mắc song song,
+nối xong cho nó là 1 object luôn, sau sẽ ấn cả cục đó vs component khác để mắc nt/ss tiếp
+- check logic trong từng file package components để hiện bóng đèn sáng, total resistance và total capacitance trong 1 ô
+riêng, update realtime 
+
++ design:
+- các package t đã set theo luật MVC (Model–View–Controller)
+- trong package components, có file Components là abstract class của các component khác
+từng file component sẽ có method, attribute kế thừa và vector drawing tương ứng của nó 
+- connection sẽ có formula tính V/I riêng
+- cần 1-2 model để test, để trong src code luôn
+- về UI và SceneBuilder t sẽ mày mò thêm còn tạm thời ntn trc nhé. ae cứ làm dần code của package components
