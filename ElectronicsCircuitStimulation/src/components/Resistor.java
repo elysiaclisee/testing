@@ -49,4 +49,9 @@ public class Resistor extends Components {
     public void setResistance(double r) {
         this.resistance = r;
     }
+
+	@Override
+	public Rectangle getBounds() {
+	    return new Rectangle(x - width / 2, y - height / 2, width, height);
+	}
 }

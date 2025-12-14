@@ -27,12 +27,21 @@ public class Capacitor extends Components {
         g2.setColor(Color.BLACK);
         g2.drawRect(left, top, w, h);
         g2.setFont(g2.getFont().deriveFont(12f));
-        drawCenteredString(g2, "C", new Rectangle(left, top, w, h));
+        String label = formatDouble(capacitance) + "F";
+        drawCenteredString(g2, label, new Rectangle(left, top, w, h));
 
         if (selected) {
             g2.setColor(Color.BLUE);
             g2.setStroke(new BasicStroke(2f));
             g2.drawRect(left-4, top-4, w+8, h+8);
+        }
+    }
+
+    private String formatDouble(double d) {
+        if (d == (long) d) {
+            return String.format("%d", (long) d);
+        } else {
+            return String.format("%.2f", d);
         }
     }
 
@@ -52,4 +61,10 @@ public class Capacitor extends Components {
     public double getCapacitance() {
         return capacitance;
     }
+
+	@Override
+	public Rectangle getBounds() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

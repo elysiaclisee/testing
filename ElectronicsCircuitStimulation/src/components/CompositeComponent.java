@@ -1,23 +1,39 @@
 package components;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class CompositeComponent extends Components {
-    public enum Mode { SERIES, PARALLEL }
-    private final List<Components> parts;
-    private final Mode mode;
+    private List<Components> children = new ArrayList<>();
+    private Mode mode = Mode.SERIES;
+
+    public enum Mode {
+        SERIES, PARALLEL
+    }
+
+    public CompositeComponent(String id, int x, int y) {
+        super(id, x, y);
+    }
 
     public CompositeComponent(String id, int x, int y, Mode mode, List<Components> parts) {
         super(id, x, y);
-        this.parts = parts;
         this.mode = mode;
+        this.children = parts;
         this.width = 100;
         this.height = 60;
     }
 
-    public List<Components> getParts() {
-        return parts;
+    public void add(Components component) {
+        children.add(component);
+    }
+
+    public List<Components> getChildren() {
+        return children;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode;
     }
 
     public Mode getMode() {
@@ -50,11 +66,11 @@ public class CompositeComponent extends Components {
 
     @Override
     public double getResistanceOhms() {
-        if (parts == null || parts.isEmpty()) return Double.POSITIVE_INFINITY;
-        if (parts.size() == 1) return parts.get(0).getResistanceOhms();
+        if (children == null || children.isEmpty()) return Double.POSITIVE_INFINITY;
+        if (children.size() == 1) return children.get(0).getResistanceOhms();
         if (mode == Mode.SERIES) {
             double sum = 0.0;
-            for (Components c : parts) {
+            for (Components c : children) {
                 double r = c.getResistanceOhms();
                 if (Double.isInfinite(r)) return Double.POSITIVE_INFINITY;
                 sum += r;
@@ -63,7 +79,7 @@ public class CompositeComponent extends Components {
         } else { // PARALLEL
             double inv = 0.0;
             boolean anyFinite = false;
-            for (Components c : parts) {
+            for (Components c : children) {
                 double r = c.getResistanceOhms();
                 if (Double.isInfinite(r)) continue;
                 anyFinite = true;
@@ -73,4 +89,9 @@ public class CompositeComponent extends Components {
             return 1.0 / inv;
         }
     }
+
+	@Override
+	public Rectangle getBounds() {
+	    return new Rectangle(x - width / 2, y - height / 2, width, height);
+	}
 }

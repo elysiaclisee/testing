@@ -4,16 +4,27 @@ import java.awt.*;
 
 public class Bulb extends Components {
     private double resistance;
+    private boolean isLighted = false;
+    private double powerLimit;
 
-    public Bulb(String id, int x, int y, double resistance) {
+    public Bulb(String id, int x, int y, double resistance, double powerLimit) {
         super(id, x, y);
         this.resistance = resistance;
+        this.powerLimit = powerLimit;
         this.width = 40;
         this.height = 40;
     }
 
     public Bulb(String id, int x, int y) {
-        this(id, x, y, 220.0);
+        this(id, x, y, 220.0, 100.0); // Default resistance and power limit
+    }
+
+    public void setLighted(boolean lighted) {
+        isLighted = lighted;
+    }
+
+    public double getPowerLimit() {
+        return powerLimit;
     }
 
     @Override
@@ -21,7 +32,11 @@ public class Bulb extends Components {
         int d = Math.max(width, height);
         int left = x - d/2;
         int top = y - d/2;
-        g2.setColor(Color.YELLOW);
+        if (isLighted) {
+            g2.setColor(Color.YELLOW);
+        } else {
+            g2.setColor(Color.DARK_GRAY);
+        }
         g2.fillOval(left, top, d, d);
         g2.setColor(Color.BLACK);
         g2.drawOval(left, top, d, d);
@@ -43,4 +58,10 @@ public class Bulb extends Components {
     public double getResistanceOhms() {
         return resistance;
     }
+
+	@Override
+	public Rectangle getBounds() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

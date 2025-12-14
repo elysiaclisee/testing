@@ -2,7 +2,7 @@ package components;
 
 import java.awt.*;
 
-public class Wire {
+public class Wire implements Cloneable {
     public enum Type { SERIES, PARALLEL }
     private Components a, b;
     private Type type;
@@ -16,6 +16,20 @@ public class Wire {
     public Components getA() { return a; }
     public Components getB() { return b; }
     public Type getType() { return type; }
+
+    @Override
+    public Wire clone() {
+        try {
+            return (Wire) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new AssertionError(); // Should not happen
+        }
+    }
+
+    public void remap(java.util.Map<String, Components> componentMap) {
+        a = componentMap.get(a.getId());
+        b = componentMap.get(b.getId());
+    }
 
     public void draw(Graphics2D g2) {
         Point pa = a.getPosition();
