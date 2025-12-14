@@ -3,13 +3,11 @@ package components;
 import java.awt.*;
 
 public class Capacitor extends Components {
-    private double capacitance; // farads (not actively used for DC resistance)
+    private double capacitance; 
 
     public Capacitor(String id, int x, int y, double capacitance) {
         super(id, x, y);
         this.capacitance = capacitance;
-        this.width = 50;
-        this.height = 30;
     }
 
     public Capacitor(String id, int x, int y) {
@@ -18,23 +16,11 @@ public class Capacitor extends Components {
 
     @Override
     public void draw(Graphics2D g2) {
-        int w = width;
-        int h = height;
-        int left = x - w/2;
-        int top = y - h/2;
-        g2.setColor(Color.CYAN);
-        g2.fillRect(left, top, w, h);
+        draw(g2, Color.CYAN);
         g2.setColor(Color.BLACK);
-        g2.drawRect(left, top, w, h);
         g2.setFont(g2.getFont().deriveFont(12f));
-        String label = formatDouble(capacitance) + "F";
-        drawCenteredString(g2, label, new Rectangle(left, top, w, h));
-
-        if (selected) {
-            g2.setColor(Color.BLUE);
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawRect(left-4, top-4, w+8, h+8);
-        }
+        String label = "C: " +formatDouble(capacitance) + "F";
+        drawCenteredString(g2, label, new Rectangle(x-width/2, y-height/2, width, height));
     }
 
     private String formatDouble(double d) {
@@ -64,7 +50,6 @@ public class Capacitor extends Components {
 
 	@Override
 	public Rectangle getBounds() {
-		// TODO Auto-generated method stub
-		return null;
+		return new Rectangle(x - width / 2, y - height / 2, width, height);
 	}
 }

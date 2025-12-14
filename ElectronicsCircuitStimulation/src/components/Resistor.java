@@ -16,22 +16,8 @@ public class Resistor extends Components {
 
     @Override
     public void draw(Graphics2D g2) {
-        int w = width;
-        int h = height;
-        int left = x - w/2;
-        int top = y - h/2;
-        g2.setColor(Color.LIGHT_GRAY);
-        g2.fillRoundRect(left, top, w, h, 8, 8);
-        g2.setColor(Color.BLACK);
-        g2.drawRoundRect(left, top, w, h, 8, 8);
-        String label = "R\n" + (int)resistance + "Ω";
-        g2.setFont(g2.getFont().deriveFont(12f));
-        drawCenteredString(g2, "R " + (int)resistance + "Ω", new Rectangle(left, top, w, h));
-        if (selected) {
-            g2.setColor(Color.BLUE);
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawRect(left-4, top-4, w+8, h+8);
-        }
+        super.draw(g2);
+        drawCenteredString(g2, "R " + (int)resistance + "Ω", new Rectangle(x - width/2, y - height/2, width, height));
     }
 
     private void drawCenteredString(Graphics2D g2, String text, Rectangle rect) {

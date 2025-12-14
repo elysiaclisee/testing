@@ -3,12 +3,12 @@ package components;
 import java.awt.*;
 
 public class Inductor extends Components {
-    private double inductance; // In Henrys
+    private double inductance; 
 
     public Inductor(String id, int x, int y, double inductance) {
         super(id, x, y);
         this.inductance = inductance;
-        this.resistanceOhms = 0.1; // Default resistance for the inductor coil
+        this.resistanceOhms = 0.1; 
     }
 
     public double getInductance() {
@@ -17,15 +17,18 @@ public class Inductor extends Components {
 
     @Override
     public void draw(Graphics2D g2) {
-        super.draw(g2); // Draws the selection halo
-        g2.setColor(Color.BLUE);
-        g2.drawLine(x, y, x + 20, y);
-        for (int i = 0; i < 4; i++) {
-            g2.drawArc(x + 20 + i * 10, y - 5, 10, 10, 0, 180);
-        }
-        g2.drawLine(x + 60, y, x + 80, y);
-        String label = formatDouble(inductance) + "H";
-        g2.drawString(label, x + 35, y - 10);
+        draw(g2, new Color(200, 200, 255)); 
+
+        String label = "L: " + formatDouble(inductance) + "H";
+        g2.setFont(g2.getFont().deriveFont(12f));
+        drawCenteredString(g2, label, new Rectangle(x - width / 2, y - height / 2, width, height));
+    }
+
+    private void drawCenteredString(Graphics2D g2, String text, Rectangle rect) {
+        FontMetrics fm = g2.getFontMetrics();
+        int x = rect.x + (rect.width - fm.stringWidth(text)) / 2;
+        int y = rect.y + (rect.height - fm.getHeight()) / 2 + fm.getAscent();
+        g2.drawString(text, x, y);
     }
 
     private String formatDouble(double d) {
@@ -43,6 +46,6 @@ public class Inductor extends Components {
 
     @Override
     public Rectangle getBounds() {
-        return new Rectangle(x, y - 5, 80, 10);
+        return new Rectangle(x - width / 2, y - height / 2, width, height);
     }
 }

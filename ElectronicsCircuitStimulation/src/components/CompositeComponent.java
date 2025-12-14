@@ -58,9 +58,11 @@ public class CompositeComponent extends Components {
         g2.drawString(label, lx, ly);
 
         if (selected) {
-            g2.setColor(Color.BLUE);
-            g2.setStroke(new BasicStroke(2f));
-            g2.drawRect(left-4, top-4, width+8, height+8);
+            g2.setColor(Color.BLACK);
+            g2.setStroke(new BasicStroke(2));
+            Rectangle bounds = getBounds();
+            g2.draw(new Rectangle(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4));
+            g2.setStroke(new BasicStroke(1));
         }
     }
 

@@ -1,13 +1,11 @@
 package main;
 
 import components.*;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.List;
-
 
 public class Main {
     public static void main(String[] args) {
@@ -22,57 +20,47 @@ public class Main {
     }
 
     static class CircuitPanel extends JPanel {
-        // board geometry
         private final Rectangle boardRect = new Rectangle(10, 150, 965, 500);
-
-        // view toolbox
         private final view.ToolboxView toolboxView = new view.ToolboxView();
-
         private final Circuit circuit = new Circuit();
         private final java.util.List<Wire> wires = new ArrayList<>();
-
         private Components dragging = null;
         private Point dragOffset = null;
-
         private Components firstSelected = null;
         private Components secondSelected = null;
-
         private JLabel instructionLabel;
         private JLabel circuitStatsLabel;
         private JLabel componentValuesLabel;
-
         private final List<CircuitMemento> undoStack = new ArrayList<>();
         private final List<CircuitMemento> redoStack = new ArrayList<>();
 
         CircuitPanel() {
             setLayout(null);
             setBackground(Color.WHITE);
-
             JButton seriesBtn = new JButton("Series");
             JButton parallelBtn = new JButton("Parallel");
             JButton undoBtn = new JButton("Undo");
             instructionLabel = new JLabel("Select two components and click a connect button.");
-            circuitStatsLabel = new JLabel("Circuit stats will be shown here.");
-            componentValuesLabel = new JLabel("Component values will be shown here.");
-
+            circuitStatsLabel = new JLabel("Circuit: -");
+            componentValuesLabel = new JLabel("Selection: None");
             seriesBtn.setBounds(560, 30, 100, 28);
             parallelBtn.setBounds(670, 30, 100, 28);
-            undoBtn.setBounds(780, 30, 80, 28);
-            instructionLabel.setBounds(565, 60, 500, 28);
-            circuitStatsLabel.setBounds(565, 80, 500, 28);
-            componentValuesLabel.setBounds(565, 100, 500, 28);
-
+            undoBtn.setBounds(780, 30, 100, 28);
+            instructionLabel.setBounds(565, 65, 400, 20);
+            circuitStatsLabel.setBounds(565, 85, 400, 20);
+            componentValuesLabel.setBounds(565, 105, 400, 20);
+            instructionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+            circuitStatsLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+            componentValuesLabel.setForeground(new Color(0, 100, 0));
             add(seriesBtn);
             add(parallelBtn);
             add(undoBtn);
             add(instructionLabel);
             add(circuitStatsLabel);
             add(componentValuesLabel);
-
             seriesBtn.addActionListener(e -> connectSelected(Wire.Type.SERIES));
             parallelBtn.addActionListener(e -> connectSelected(Wire.Type.PARALLEL));
             undoBtn.addActionListener(e -> undo());
-
             MouseAdapter ma = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
@@ -81,31 +69,49 @@ public class Main {
                     controller.Toolbox.Tool t = toolboxView.hitTool(p);
                     if (t != null) {
                         saveState();
-                        Components c = controller.Toolbox.create(t, boardRect.x + boardRect.width/2, boardRect.y + 40);
-                        if (c == null) {
-                            // creation was cancelled, so don't add component
-                            return;
-                        }
+                        Components c = controller.Toolbox.create(t, boardRect.x + boardRect.width / 2, boardRect.y + 40);
+                        if (c == null) return;
                         circuit.addComponent(c);
                         dragging = c;
-                        dragOffset = new Point(0,0);
+                        dragOffset = new Point(0, 0);
                         clearSelection();
                         c.setSelected(true);
                         firstSelected = c;
+                        updateCircuit();
                         repaint();
                         return;
                     }
-
                     Components hit = componentAt(p);
                     if (hit != null) {
                         dragging = hit;
                         dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
+                        if (e.isControlDown()) {
+                            if (hit.isSelected()) {
+                                hit.setSelected(false);
+                                if (firstSelected == hit) firstSelected = null;
+                                if (secondSelected == hit) secondSelected = null;
+                            } else {
+                                hit.setSelected(true);
+                                if (firstSelected == null) {
+                                    firstSelected = hit;
+                                } else if (secondSelected == null) {
+                                    secondSelected = hit;
+                                }
+                            }
+                        } else {
+                            if (!hit.isSelected()) {
+                                clearSelection();
+                                hit.setSelected(true);
+                                firstSelected = hit;
+                            }
+                        }
+                        updateCircuit();
                         repaint();
                         return;
                     }
-
                     if (boardRect.contains(p)) {
                         clearSelection();
+                        updateCircuit();
                         repaint();
                     }
                 }
@@ -131,51 +137,18 @@ public class Main {
                         if (!boardRect.contains(p)) {
                             circuit.removeComponent(dragging);
                         }
-                        if (pressPoint != null && p.distance(pressPoint) < 6) {
-                            if (dragging.isSelected()) {
-                                dragging.setSelected(false);
-                                if (firstSelected == dragging) firstSelected = null;
-                                else if (secondSelected == dragging) secondSelected = null;
-                            } else {
-                                if (firstSelected == null) {
-                                    firstSelected = dragging;
-                                    dragging.setSelected(true);
-                                } else if (secondSelected == null && dragging != firstSelected) {
-                                    secondSelected = dragging;
-                                    dragging.setSelected(true);
-                                } else {
-                                    clearSelection();
-                                    firstSelected = dragging;
-                                    dragging.setSelected(true);
-                                }
-                            }
-                        }
                         dragging = null;
                         updateCircuit();
                         repaint();
                     }
                 }
-
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    Point p = e.getPoint();
-                    if (!boardRect.contains(p)) return;
-                    Components hit = componentAt(p);
-                    if (hit == null) {
-                        clearSelection();
-                        repaint();
-                    }
-                }
             };
-
             addMouseListener(ma);
             addMouseMotionListener(ma);
         }
 
         private void undo() {
-            if (undoStack.isEmpty()) {
-                return;
-            }
+            if (undoStack.isEmpty()) return;
             CircuitMemento memento = undoStack.remove(undoStack.size() - 1);
             redoStack.add(new CircuitMemento(circuit, wires));
             restoreState(memento);
@@ -196,62 +169,72 @@ public class Main {
 
         private void connectSelected(Wire.Type type) {
             if (firstSelected == null || secondSelected == null) {
-                instructionLabel.setText("Please select two components first.");
+                instructionLabel.setText("Select two components first.");
                 return;
             }
             saveState();
             wires.add(new Wire(firstSelected, secondSelected, type));
-
             CompositeComponent.Mode mode = (type == Wire.Type.SERIES) ? CompositeComponent.Mode.SERIES : CompositeComponent.Mode.PARALLEL;
             circuit.connect(firstSelected, secondSelected, mode);
-
             updateCircuit();
-            // clear selection after connecting
             clearSelection();
             repaint();
         }
 
         private void updateCircuit() {
-            double voltage = 5.0; // Default voltage
-            // Find a battery in the circuit to use its voltage
+            double voltage = 5.0;
             for (Components c : circuit.getComponents()) {
-                if (c instanceof Battery) {
-                    voltage = ((Battery) c).getVoltage();
+                if (c instanceof PowerSource) {
+                    voltage = ((PowerSource) c).getVoltage();
                     break;
                 }
             }
             circuit.updateBulbStates(voltage);
-
             double req = circuit.getRoot() != null ? circuit.getRoot().getResistanceOhms() : 0.0;
             double current = Connections.current(voltage, req);
-            circuitStatsLabel.setText(String.format("R = %s Ω, I = %.3f A @ V=%sV", formatDouble(req), current, formatDouble(voltage)));
-
-            StringBuilder componentValues = new StringBuilder("<html>");
-            for (Components c : circuit.getComponents()) {
-                componentValues.append(c.getId()).append(": ");
-                if (c instanceof Resistor) {
-                    componentValues.append(String.format("%s Ω", formatDouble(c.getResistanceOhms())));
-                } else if (c instanceof Capacitor) {
-                    componentValues.append(String.format("%s F", formatDouble(((Capacitor) c).getCapacitance())));
-                } else if (c instanceof Inductor) {
-                    componentValues.append(String.format("%s H", formatDouble(((Inductor) c).getInductance())));
-                } else if (c instanceof Bulb) {
-                    componentValues.append(String.format("%s Ω", formatDouble(c.getResistanceOhms())));
-                } else if (c instanceof Battery) {
-                    componentValues.append(String.format("%s V", formatDouble(((Battery) c).getVoltage())));
+            circuitStatsLabel.setText(String.format("Total: V = %s, I = %s, Req = %s",
+                    formatMetric(voltage, "V"),
+                    formatMetric(current, "A"),
+                    formatMetric(req, "Ω")));
+            if (firstSelected != null) {
+                String details = getComponentDetails(firstSelected);
+                if (secondSelected != null) {
+                    details += " + " + getComponentDetails(secondSelected);
                 }
-                componentValues.append("<br>");
+                componentValuesLabel.setText("Selected: " + details);
+            } else {
+                componentValuesLabel.setText("Selected: None");
             }
-            componentValues.append("</html>");
-            componentValuesLabel.setText(componentValues.toString());
         }
 
-        private String formatDouble(double d) {
-            if (d == (long) d) {
-                return String.format("%d", (long) d);
-            } else {
-                return String.format("%.2f", d);
+        private String getComponentDetails(Components c) {
+            if (c instanceof Resistor) return formatMetric(c.getResistanceOhms(), "Ω");
+            if (c instanceof Capacitor) return formatMetric(((Capacitor) c).getCapacitance(), "F");
+            if (c instanceof Inductor) return formatMetric(((Inductor) c).getInductance(), "H");
+            if (c instanceof PowerSource) {
+                PowerSource b = (PowerSource) c;
+                return formatMetric(b.getVoltage(), "V") + " / " + formatMetric(b.getFrequency(), "Hz");
             }
+            if (c instanceof Bulb) return "Bulb (" + formatMetric(c.getResistanceOhms(), "Ω") + ")";
+            return c.getId();
+        }
+
+        private String formatMetric(double value, String unit) {
+            if (Double.isInfinite(value) || Double.isNaN(value)) return "- " + unit;
+            if (value == 0) return "0 " + unit;
+            double abs = Math.abs(value);
+            String prefix = "";
+            double scaled = value;
+            if (abs >= 1_000_000) { scaled /= 1_000_000; prefix = "M"; }
+            else if (abs >= 1_000) { scaled /= 1_000; prefix = "k"; }
+            else if (abs >= 1) { prefix = ""; }
+            else if (abs >= 0.001) { scaled *= 1_000; prefix = "m"; }
+            else if (abs >= 0.000_001) { scaled *= 1_000_000; prefix = "µ"; }
+            else if (abs >= 0.000_000_001) { scaled *= 1_000_000_000; prefix = "n"; }
+            String s = String.format("%.2f", scaled);
+            if (s.endsWith(".00")) s = s.substring(0, s.length() - 3);
+            else if (s.endsWith("0") && s.contains(".")) s = s.substring(0, s.length() - 1);
+            return s + " " + prefix + unit;
         }
 
         private void clearSelection() {
@@ -260,7 +243,6 @@ public class Main {
             secondSelected = null;
         }
 
-        // renamed to avoid collision with Container.findComponentAt(Point)
         private Components componentAt(Point p) {
             List<Components> components = circuit.getComponents();
             for (int i = components.size() - 1; i >= 0; i--) {
@@ -276,10 +258,11 @@ public class Main {
             Graphics2D g2 = (Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            // draw toolbox
+            Stroke originalStroke = g2.getStroke();
+            Color originalColor = g2.getColor();
+
             toolboxView.draw(g2);
 
-            // draw circuit board rectangle
             g2.setColor(new Color(245, 255, 245));
             g2.fill(boardRect);
             g2.setColor(Color.GRAY);
@@ -288,19 +271,19 @@ public class Main {
             g2.setColor(Color.DARK_GRAY);
             g2.drawString("Circuit Board", boardRect.x + 8, boardRect.y + 16);
 
-            // draw wires
-            for (Wire w : wires) {
-                w.draw(g2);
-            }
+            for (Wire w : wires) w.draw(g2);
 
-            // draw components
+            g2.setStroke(originalStroke);
+            g2.setColor(originalColor);
+
             for (Components c : circuit.getComponents()) {
                 c.draw(g2);
+                g2.setStroke(originalStroke);
+                g2.setColor(originalColor);
             }
 
-            // instructions
             g2.setColor(Color.DARK_GRAY);
-            g2.drawString("Click a toolbox item to add it to the board; drag to move. Select two components and click connect.", 10, boardRect.y - 6);
+            g2.drawString("Click toolbox to add. Drag to move. Select two & connect.", 10, boardRect.y - 6);
         }
     }
 }

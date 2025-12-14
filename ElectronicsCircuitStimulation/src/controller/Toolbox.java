@@ -4,15 +4,18 @@ import components.*;
 import javax.swing.*;
 
 public class Toolbox {
-    public enum Tool { BATTERY, RESISTOR, CAPACITOR, BULB, INDUCTOR }
+    public enum Tool { POWER_SOURCE, RESISTOR, CAPACITOR, BULB, INDUCTOR }
 
     private static int counter = 1;
 
     public static Components create(Tool tool, int x, int y) {
         String id = tool.name().substring(0, 1) + counter++;
+        return create(tool, x, y, id);
+    }
 
+    public static Components create(Tool tool, int x, int y, String id) {
         switch (tool) {
-            case BATTERY: {
+            case POWER_SOURCE: {
                 JTextField voltageField = new JTextField("5.0", 5);
                 JTextField frequencyField = new JTextField("0", 5);
 
@@ -24,7 +27,7 @@ public class Toolbox {
                 panel.add(frequencyField);
 
                 int result = JOptionPane.showConfirmDialog(null, panel,
-                        "Enter Battery Values", JOptionPane.OK_CANCEL_OPTION);
+                        "Enter Power Source Values", JOptionPane.OK_CANCEL_OPTION);
                 if (result == JOptionPane.OK_OPTION) {
                     double voltage = 5.0;
                     double frequency = 0.0;
@@ -38,7 +41,7 @@ public class Toolbox {
                     } catch (NumberFormatException e) {
                         // keep default
                     }
-                    return new Battery(id, x, y, voltage, frequency);
+                    return new PowerSource(id, x, y, voltage, frequency);
                 } else {
                     return null; // User cancelled
                 }

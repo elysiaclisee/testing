@@ -44,16 +44,27 @@ public abstract class Components implements Cloneable {
     public String getId() {
         return id;
     }
-
-    // return the (DC) equivalent resistance in ohms for this component when used as a resistor
     public abstract double getResistanceOhms();
 
     public abstract Rectangle getBounds();
 
-    // draw the component
     public void draw(Graphics2D g2) {
+        draw(g2, Color.LIGHT_GRAY);
+    }
+
+    public void draw(Graphics2D g2, Color fillColor) {
+        int w = width;
+        int h = height;
+        int left = x - w / 2;
+        int top = y - h / 2;
+
+        g2.setColor(fillColor);
+        g2.fillRoundRect(left, top, w, h, 8, 8);
+        g2.setColor(Color.BLACK);
+        g2.drawRoundRect(left, top, w, h, 8, 8);
+
         if (selected) {
-            g2.setColor(Color.RED);
+            g2.setColor(Color.BLACK);
             g2.setStroke(new BasicStroke(2));
             Rectangle bounds = getBounds();
             g2.draw(new Rectangle(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4));
@@ -66,7 +77,7 @@ public abstract class Components implements Cloneable {
         try {
             return (Components) super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(); // Should not happen
+            throw new AssertionError(); 
         }
     }
 }

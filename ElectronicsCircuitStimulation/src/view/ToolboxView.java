@@ -37,7 +37,7 @@ public class ToolboxView {
         g2.setFont(new Font("SansSerif", Font.BOLD, 14));
         g2.drawString("Toolbox", X + 10, Y + 20);
 
-        drawTool(g2, slots[0], "Battery");
+        drawTool(g2, slots[0], "Power Source");
         drawTool(g2, slots[1], "Resistor");
         drawTool(g2, slots[2], "Bulb");
         drawTool(g2, slots[3], "Capacitor");
@@ -53,38 +53,24 @@ public class ToolboxView {
         int cx = r.x + r.width / 2;
         int cy = r.y + r.height / 2 - 6;
 
+        Color componentColor;
         switch (label) {
-            case "Resistor" -> {
-                g2.setColor(Color.LIGHT_GRAY);
-                g2.fillRoundRect(cx - 24, cy - 10, 48, 20, 6, 6);
-                g2.setColor(Color.BLACK);
-                g2.drawRoundRect(cx - 24, cy - 10, 48, 20, 6, 6);
-            }
-            case "Capacitor" -> {
-                g2.setColor(Color.CYAN);
-                g2.fillRect(cx - 20, cy - 10, 40, 20);
-                g2.setColor(Color.BLACK);
-                g2.drawRect(cx - 20, cy - 10, 40, 20);
-            }
-            case "Bulb" -> {
-                g2.setColor(Color.YELLOW);
-                g2.fillOval(cx - 14, cy - 14, 28, 28);
-                g2.setColor(Color.BLACK);
-                g2.drawOval(cx - 14, cy - 14, 28, 28);
-            }
-            case "Battery" -> {
-                g2.setColor(Color.GREEN);
-                g2.fillRect(cx - 20, cy - 10, 40, 20);
-                g2.setColor(Color.BLACK);
-                g2.drawRect(cx - 20, cy - 10, 40, 20);
-                g2.drawLine(cx + 20, cy - 5, cx + 25, cy - 5);
-                g2.drawLine(cx + 22, cy - 8, cx + 22, cy - 2);
-            }
-            case "Inductor" -> {
-                g2.setColor(Color.GREEN);
-                g2.drawArc(cx - 15, cy - 15, 30, 30, 0, 180);
-                g2.drawArc(cx - 15, cy - 15, 30, 30, 180, 180);
-            }
+            case "Resistor" -> componentColor = Color.LIGHT_GRAY;
+            case "Capacitor" -> componentColor = Color.CYAN;
+            case "Bulb" -> componentColor = Color.YELLOW;
+            case "Power Source" -> componentColor = Color.GREEN;
+            case "Inductor" -> componentColor = new Color(200, 200, 255);
+            default -> componentColor = Color.GRAY;
+        }
+
+        g2.setColor(componentColor);
+        g2.fillRoundRect(cx - 24, cy - 10, 48, 20, 6, 6);
+        g2.setColor(Color.BLACK);
+        g2.drawRoundRect(cx - 24, cy - 10, 48, 20, 6, 6);
+
+        if ("Power Source".equals(label)) {
+            g2.drawLine(cx + 20, cy - 5, cx + 25, cy - 5);
+            g2.drawLine(cx + 22, cy - 8, cx + 22, cy - 2);
         }
 
         g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
@@ -100,7 +86,7 @@ public class ToolboxView {
             if (slots[i].contains(p)) {
                 switch (i) {
                     case 0 -> {
-                        return Toolbox.Tool.BATTERY;
+                        return Toolbox.Tool.POWER_SOURCE;
                     }
                     case 1 -> {
                         return Toolbox.Tool.RESISTOR;
