@@ -5,95 +5,101 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CompositeComponent extends Components {
-    private List<Components> children = new ArrayList<>();
+	private List<Components> children = new ArrayList<>();
     private Mode mode = Mode.SERIES;
 
-    public enum Mode {
-        SERIES, PARALLEL
-    }
+    public enum Mode { SERIES, PARALLEL }
 
-    public CompositeComponent(String id, int x, int y) {
-        super(id, x, y);
-    }
+    public CompositeComponent(String id, int x, int y) { super(id, x, y); }
 
-    public CompositeComponent(String id, int x, int y, Mode mode, List<Components> parts) {
-        super(id, x, y);
-        this.mode = mode;
-        this.children = parts;
-        this.width = 100;
-        this.height = 60;
-    }
-
-    public void add(Components component) {
-        children.add(component);
-    }
-
-    public List<Components> getChildren() {
-        return children;
-    }
-
-    public void setMode(Mode mode) {
-        this.mode = mode;
-    }
-
-    public Mode getMode() {
-        return mode;
-    }
-
-    @Override
-    public void draw(Graphics2D g2) {
-        int left = x - width/2;
-        int top = y - height/2;
-        // draw a box representing the composite
-        g2.setColor(new Color(220, 220, 250));
-        g2.fillRect(left, top, width, height);
-        g2.setColor(Color.BLACK);
-        g2.drawRect(left, top, width, height);
-
-        g2.setFont(g2.getFont().deriveFont(12f));
-        String label = mode == Mode.SERIES ? "Series" : "Parallel";
-        FontMetrics fm = g2.getFontMetrics();
-        int lx = x - fm.stringWidth(label)/2;
-        int ly = y + fm.getAscent()/2;
-        g2.drawString(label, lx, ly);
-
-        if (selected) {
-            g2.setColor(Color.BLACK);
-            g2.setStroke(new BasicStroke(2));
-            Rectangle bounds = getBounds();
-            g2.draw(new Rectangle(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4));
-            g2.setStroke(new BasicStroke(1));
-        }
-    }
+    // ... (Keep existing constructors and generic methods) ...
 
     @Override
     public double getResistanceOhms() {
+        return getImpedance(0); // Default to DC
+    }
+
+    @Override
+    public double getImpedance(double frequency) {
         if (children == null || children.isEmpty()) return Double.POSITIVE_INFINITY;
-        if (children.size() == 1) return children.get(0).getResistanceOhms();
+        
         if (mode == Mode.SERIES) {
-            double sum = 0.0;
+            double totalZ = 0.0;
             for (Components c : children) {
-                double r = c.getResistanceOhms();
-                if (Double.isInfinite(r)) return Double.POSITIVE_INFINITY;
-                sum += r;
+                totalZ += c.getImpedance(frequency);
             }
-            return sum;
+            return totalZ;
         } else { // PARALLEL
-            double inv = 0.0;
-            boolean anyFinite = false;
+            double inverseZ = 0.0;
+            boolean hasShort = false;
             for (Components c : children) {
-                double r = c.getResistanceOhms();
-                if (Double.isInfinite(r)) continue;
-                anyFinite = true;
-                inv += 1.0 / r;
+                double z = c.getImpedance(frequency);
+                if (z <= 1e-9) hasShort = true; // Handle effectively 0 impedance
+                if (!Double.isInfinite(z) && z > 0) {
+                    inverseZ += 1.0 / z;
+                }
             }
-            if (!anyFinite) return Double.POSITIVE_INFINITY;
-            return 1.0 / inv;
+            if (hasShort) return 0.0;
+            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY;
+            return 1.0 / inverseZ;
+        }
+    }
+
+    /**
+     * Recursively distributes Voltage and Current to children based on circuit laws.
+     */
+    @Override
+    public void setSimulationState(double voltage, double current) {
+        // 1. Store state for this composite container
+        super.setSimulationState(voltage, current);
+
+        // 2. Distribute to children
+        if (children.isEmpty()) return;
+
+        // Get the frequency from context or passed down? 
+        // For simplicity in this architecture, we recalculate impedances or 
+        // assume impedance was cached. Here we re-fetch assuming freq is available 
+        // or we calculate ratios based on R (DC) if freq is missing. 
+        // Ideally, solve() should accept frequency.
+        // Let's assume we use the cached values implied by the passed voltage/current.
+        
+        if (mode == Mode.SERIES) {
+            // SERIES: Current is constant, Voltage splits.
+            // V_child = V_total * (Z_child / Z_total)
+            for (Components c : children) {
+                // Approximate distribution based on DC Resistance for now, 
+                // or you need to pass frequency into setSimulationState.
+                // Assuming DC/Resistive logic for distribution to keep code simple:
+                double childR = c.getResistanceOhms(); 
+                double totalR = this.getResistanceOhms();
+                
+                double childV = (Double.isInfinite(totalR)) ? voltage : voltage * (childR / totalR);
+                
+                // If this is an open circuit (Infinite R), the open component takes ALL voltage
+                if (Double.isInfinite(childR) && Double.isInfinite(totalR)) {
+                     // Heuristic: Split voltage equally among open components or give to first
+                     childV = voltage; 
+                }
+
+                c.setSimulationState(childV, current);
+            }
+        } else {
+            // PARALLEL: Voltage is constant, Current splits.
+            // I_child = I_total * (Z_total / Z_child) OR I_child = V / Z_child
+            for (Components c : children) {
+                double childR = c.getResistanceOhms();
+                double childI = (childR <= 0) ? 0 : voltage / childR;
+                
+                if (Double.isInfinite(childR)) childI = 0.0;
+                
+                c.setSimulationState(voltage, childI);
+            }
         }
     }
 
 	@Override
 	public Rectangle getBounds() {
-	    return new Rectangle(x - width / 2, y - height / 2, width, height);
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

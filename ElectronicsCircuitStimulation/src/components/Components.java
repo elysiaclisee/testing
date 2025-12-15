@@ -2,23 +2,29 @@ package components;
 
 import java.awt.*;
 
-/**
- * Base class for a component placed on the board.
- */
 public abstract class Components implements Cloneable {
-    protected int x, y; // center position
+    protected int x, y;
     protected int width = 60;
     protected int height = 30;
     protected boolean selected = false;
     protected String id;
-    protected double resistanceOhms;
+    
+    // --- ADD THIS LINE BACK ---
+    protected double resistanceOhms; 
+    // --------------------------
+
+    // Simulation State
+    protected double voltageDrop = 0.0;
+    protected double currentFlow = 0.0;
 
     public Components(String id, int x, int y) {
         this.id = id;
         this.x = x;
         this.y = y;
     }
-
+    
+    // ... (rest of the class remains the same)
+    
     public void setPosition(int x, int y) {
         this.x = x;
         this.y = y;
@@ -27,7 +33,7 @@ public abstract class Components implements Cloneable {
     public Point getPosition() {
         return new Point(x, y);
     }
-
+    
     public boolean contains(Point p) {
         Rectangle r = new Rectangle(x - width/2, y - height/2, width, height);
         return r.contains(p);
@@ -44,8 +50,18 @@ public abstract class Components implements Cloneable {
     public String getId() {
         return id;
     }
-    public abstract double getResistanceOhms();
 
+    public abstract double getImpedance(double frequency);
+
+    public void setSimulationState(double voltage, double current) {
+        this.voltageDrop = voltage;
+        this.currentFlow = current;
+    }
+
+    public double getVoltageDrop() { return voltageDrop; }
+    public double getCurrentFlow() { return currentFlow; }
+    
+    public abstract double getResistanceOhms(); 
     public abstract Rectangle getBounds();
 
     public void draw(Graphics2D g2) {

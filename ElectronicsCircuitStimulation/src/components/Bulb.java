@@ -24,7 +24,10 @@ public class Bulb extends Components {
     public double getPowerLimit() {
         return powerLimit;
     }
-
+    @Override
+    public double getImpedance(double frequency) {
+        return resistance; // Bulbs act like resistors
+    }
     @Override
     public void draw(Graphics2D g2) {
         Color fillColor = isLighted ? Color.YELLOW : Color.DARK_GRAY;
