@@ -11,13 +11,13 @@ public class Resistor extends Components {
     }
 
     public Resistor(String id, int x, int y) {
-        this(id, x, y, 100.0);
+        this(id, x, y, 0.00);
     }
 
     @Override
     public void draw(Graphics2D g2) {
         super.draw(g2);
-        drawCenteredString(g2, "R " + (int)resistance + "Ω", new Rectangle(x - width/2, y - height/2, width, height));
+        drawCenteredString(g2, "R: " + (int)resistance + "Ω", new Rectangle(x - width/2, y - height/2, width, height));
     }
 
     private void drawCenteredString(Graphics2D g2, String text, Rectangle rect) {

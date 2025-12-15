@@ -1,8 +1,10 @@
 package view;
 
-import controller.Toolbox;
+import controller.Toolbox.Tool; 
+import components.*;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
+import javax.swing.*;
 
 public class ToolboxView {
     public static final int X = 10;
@@ -12,6 +14,13 @@ public class ToolboxView {
     private static final int HEADER_HEIGHT = 30;
 
     private final Rectangle[] slots = new Rectangle[5];
+
+    // --- 1. Create "Dummy" Components for display purposes ---
+    private final PowerSource sampleSource;
+    private final Resistor sampleResistor;
+    private final Bulb sampleBulb;
+    private final Capacitor sampleCapacitor;
+    private final Inductor sampleInductor;
 
     public ToolboxView() {
         int padding = 10;
@@ -25,6 +34,19 @@ public class ToolboxView {
             int sy = Y + HEADER_HEIGHT;
             slots[i] = new Rectangle(sx, sy, slotWidth, slotHeight);
         }
+
+        // --- 2. Initialize the dummies (0,0 is temporary) ---
+        sampleSource = new PowerSource("Display", 0, 0, 0.0, 0.0);
+        sampleResistor = new Resistor("Display", 0, 0, 0);
+        sampleBulb = new Bulb("Display", 0, 0);
+        sampleCapacitor = new Capacitor("Display", 0, 0, 0);
+        sampleInductor = new Inductor("Display", 0, 0, 0);
+        
+        sampleSource.setSelected(false);
+        sampleResistor.setSelected(false);
+        sampleBulb.setSelected(false);
+        sampleCapacitor.setSelected(false);
+        sampleInductor.setSelected(false);
     }
 
     public void draw(Graphics2D g2) {
@@ -37,42 +59,31 @@ public class ToolboxView {
         g2.setFont(new Font("SansSerif", Font.BOLD, 14));
         g2.drawString("Toolbox", X + 10, Y + 20);
 
-        drawTool(g2, slots[0], "Power Source");
-        drawTool(g2, slots[1], "Resistor");
-        drawTool(g2, slots[2], "Bulb");
-        drawTool(g2, slots[3], "Capacitor");
-        drawTool(g2, slots[4], "Inductor");
+        // --- 3. Draw using the Component's OWN draw method ---
+        drawComponentInSlot(g2, slots[0], sampleSource, "Power Source");
+        drawComponentInSlot(g2, slots[1], sampleResistor, "Resistor");
+        drawComponentInSlot(g2, slots[2], sampleBulb, "Bulb");
+        drawComponentInSlot(g2, slots[3], sampleCapacitor, "Capacitor");
+        drawComponentInSlot(g2, slots[4], sampleInductor, "Inductor");
     }
 
-    private void drawTool(Graphics2D g2, Rectangle r, String label) {
+    // Helper to position and draw the dummy component
+    private void drawComponentInSlot(Graphics2D g2, Rectangle r, Components c, String label) {
+        // Draw Slot White Box
         g2.setColor(Color.WHITE);
         g2.fill(r);
         g2.setColor(Color.BLACK);
         g2.draw(r);
 
+        // Calculate Center
         int cx = r.x + r.width / 2;
         int cy = r.y + r.height / 2 - 6;
 
-        Color componentColor;
-        switch (label) {
-            case "Resistor" -> componentColor = Color.LIGHT_GRAY;
-            case "Capacitor" -> componentColor = Color.CYAN;
-            case "Bulb" -> componentColor = Color.YELLOW;
-            case "Power Source" -> componentColor = Color.GREEN;
-            case "Inductor" -> componentColor = new Color(200, 200, 255);
-            default -> componentColor = Color.GRAY;
-        }
+        // Move component to this slot and Draw it
+        c.setPosition(cx, cy);
+        c.draw(g2); 
 
-        g2.setColor(componentColor);
-        g2.fillRoundRect(cx - 24, cy - 10, 48, 20, 6, 6);
-        g2.setColor(Color.BLACK);
-        g2.drawRoundRect(cx - 24, cy - 10, 48, 20, 6, 6);
-
-        if ("Power Source".equals(label)) {
-            g2.drawLine(cx + 20, cy - 5, cx + 25, cy - 5);
-            g2.drawLine(cx + 22, cy - 8, cx + 22, cy - 2);
-        }
-
+        // Draw Label
         g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
         Rectangle2D bounds = g2.getFontMetrics().getStringBounds(label, g2);
         int lx = r.x + (r.width - (int) bounds.getWidth()) / 2;
@@ -81,28 +92,55 @@ public class ToolboxView {
         g2.drawString(label, lx, ly);
     }
 
-    public controller.Toolbox.Tool hitTool(Point p) {
+    public Tool hitTool(Point p) {
         for (int i = 0; i < slots.length; i++) {
             if (slots[i].contains(p)) {
                 switch (i) {
-                    case 0 -> {
-                        return Toolbox.Tool.POWER_SOURCE;
-                    }
-                    case 1 -> {
-                        return Toolbox.Tool.RESISTOR;
-                    }
-                    case 2 -> {
-                        return Toolbox.Tool.BULB;
-                    }
-                    case 3 -> {
-                        return Toolbox.Tool.CAPACITOR;
-                    }
-                    case 4 -> {
-                        return Toolbox.Tool.INDUCTOR;
-                    }
+                    case 0 -> { return Tool.POWER_SOURCE; }
+                    case 1 -> { return Tool.RESISTOR; }
+                    case 2 -> { return Tool.BULB; }
+                    case 3 -> { return Tool.CAPACITOR; }
+                    case 4 -> { return Tool.INDUCTOR; }
                 }
             }
         }
         return null;
+    }
+    public Double promptForValue(String componentName, String unit) {
+        String prompt = "Enter value for " + componentName + " (" + unit + "):";
+        String input = JOptionPane.showInputDialog(null, prompt, "Enter " + componentName, JOptionPane.PLAIN_MESSAGE);
+        
+        if (input != null && !input.trim().isEmpty()) {
+            try {
+                return Double.parseDouble(input.trim());
+            } catch (NumberFormatException ex) {
+                return 0.0;
+            }
+        }
+        return null; // User cancelled
+    }
+
+    public double[] promptForPowerSource() {
+        JTextField voltageField = new JTextField("5.0", 5);
+        JTextField frequencyField = new JTextField("0", 5);
+
+        JPanel panel = new JPanel();
+        panel.add(new JLabel("Voltage (V):"));
+        panel.add(voltageField);
+        panel.add(Box.createHorizontalStrut(15));
+        panel.add(new JLabel("Frequency (Hz):"));
+        panel.add(frequencyField);
+
+        int result = JOptionPane.showConfirmDialog(null, panel, 
+                "Enter Power Source Values", JOptionPane.OK_CANCEL_OPTION);
+
+        if (result == JOptionPane.OK_OPTION) {
+            double v = 5.0;
+            double f = 0.0;
+            try { v = Double.parseDouble(voltageField.getText()); } catch (Exception e) {}
+            try { f = Double.parseDouble(frequencyField.getText()); } catch (Exception e) {}
+            return new double[]{v, f};
+        }
+        return null; // User cancelled
     }
 }

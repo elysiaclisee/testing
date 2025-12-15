@@ -1,4 +1,4 @@
-package main;
+package model;
 
 import components.Bulb;
 import components.Capacitor;
