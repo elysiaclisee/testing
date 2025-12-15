@@ -47,7 +47,14 @@ public class Capacitor extends Components {
     public double getCapacitance() {
         return capacitance;
     }
-
+    
+    @Override
+    public double getImpedance(double frequency) {
+        // Z_c = 1 / (2 * pi * f * C)
+        // If DC (freq = 0), impedance is infinite (Open Circuit)
+        if (frequency <= 0) return Double.POSITIVE_INFINITY;
+        return 1.0 / (2.0 * Math.PI * frequency * capacitance);
+    }
 	@Override
 	public Rectangle getBounds() {
 		return new Rectangle(x - width / 2, y - height / 2, width, height);

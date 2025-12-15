@@ -43,7 +43,12 @@ public class Inductor extends Components {
     public double getResistanceOhms() {
         return resistanceOhms;
     }
-
+    @Override
+    public double getImpedance(double frequency) {
+        // Z_l = 2 * pi * f * L
+        // Plus any internal resistance (usually small)
+        return (2.0 * Math.PI * frequency * inductance) + resistanceOhms;
+    }
     @Override
     public Rectangle getBounds() {
         return new Rectangle(x - width / 2, y - height / 2, width, height);
