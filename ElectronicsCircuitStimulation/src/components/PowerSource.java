@@ -15,6 +15,12 @@ public class PowerSource extends Components {
         this.frequency = frequency;
         this.width = 60;
         this.height = 40;
+        this.resistanceOhms = 0.0; // Ideal voltage source has 0 internal resistance
+    }
+
+    @Override
+    public double getImpedance(double frequency) {
+        return 0.0; // Ideal source
     }
 
     @Override
@@ -35,11 +41,8 @@ public class PowerSource extends Components {
     }
 
     private String formatDouble(double d) {
-        if (d == (long) d) {
-            return String.format("%d", (long) d);
-        } else {
-            return String.format("%.2f", d);
-        }
+        if (d == (long) d) return String.format("%d", (long) d);
+        else return String.format("%.2f", d);
     }
 
     @Override
@@ -48,21 +51,15 @@ public class PowerSource extends Components {
     }
 
     public double getFrequency() {
-		return frequency;
-	}
-
-	@Override
-    public Rectangle getBounds() {
-        return new Rectangle(x - width / 2, y - height / 2, width, height);
+        return frequency;
     }
 
     public double getVoltage() {
         return voltage;
     }
 
-	@Override
-	public double getImpedance(double frequency) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
+    @Override
+    public Rectangle getBounds() {
+        return new Rectangle(x - width / 2, y - height / 2, width, height);
+    }
 }

@@ -8,7 +8,13 @@ public class Inductor extends Components {
     public Inductor(String id, int x, int y, double inductance) {
         super(id, x, y);
         this.inductance = inductance;
-        this.resistanceOhms = 0.1; 
+        this.resistanceOhms = 0.1; // Small internal wire resistance
+    }
+
+    @Override
+    public double getImpedance(double frequency) {
+        // Z = 2 * pi * f * L + R_internal
+        return (2.0 * Math.PI * frequency * inductance) + resistanceOhms;
     }
 
     public double getInductance() {
@@ -32,23 +38,15 @@ public class Inductor extends Components {
     }
 
     private String formatDouble(double d) {
-        if (d == (long) d) {
-            return String.format("%d", (long) d);
-        } else {
-            return String.format("%.2f", d);
-        }
+        if (d == (long) d) return String.format("%d", (long) d);
+        else return String.format("%.2f", d);
     }
 
     @Override
     public double getResistanceOhms() {
         return resistanceOhms;
     }
-    @Override
-    public double getImpedance(double frequency) {
-        // Z_l = 2 * pi * f * L
-        // Plus any internal resistance (usually small)
-        return (2.0 * Math.PI * frequency * inductance) + resistanceOhms;
-    }
+
     @Override
     public Rectangle getBounds() {
         return new Rectangle(x - width / 2, y - height / 2, width, height);

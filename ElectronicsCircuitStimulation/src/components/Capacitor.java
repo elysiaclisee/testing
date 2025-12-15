@@ -8,6 +8,8 @@ public class Capacitor extends Components {
     public Capacitor(String id, int x, int y, double capacitance) {
         super(id, x, y);
         this.capacitance = capacitance;
+        // Capacitors effectively have infinite DC resistance
+        this.resistanceOhms = Double.POSITIVE_INFINITY;
     }
 
     public Capacitor(String id, int x, int y) {
@@ -15,20 +17,26 @@ public class Capacitor extends Components {
     }
 
     @Override
+    public double getImpedance(double frequency) {
+        // DC case (f=0) -> Open Circuit -> Infinite Impedance
+        if (frequency <= 1e-9) return Double.POSITIVE_INFINITY;
+        
+        // AC case -> Z = 1 / (2 * pi * f * C)
+        return 1.0 / (2.0 * Math.PI * frequency * capacitance);
+    }
+
+    @Override
     public void draw(Graphics2D g2) {
         draw(g2, Color.CYAN);
         g2.setColor(Color.BLACK);
         g2.setFont(g2.getFont().deriveFont(12f));
-        String label = "C: " +formatDouble(capacitance) + "F";
+        String label = "C: " + formatDouble(capacitance) + "F";
         drawCenteredString(g2, label, new Rectangle(x-width/2, y-height/2, width, height));
     }
 
     private String formatDouble(double d) {
-        if (d == (long) d) {
-            return String.format("%d", (long) d);
-        } else {
-            return String.format("%.2f", d);
-        }
+        if (d == (long) d) return String.format("%d", (long) d);
+        else return String.format("%.2f", d);
     }
 
     private void drawCenteredString(Graphics2D g2, String text, Rectangle rect) {
@@ -40,23 +48,15 @@ public class Capacitor extends Components {
 
     @Override
     public double getResistanceOhms() {
-        // For DC steady-state a capacitor is an open circuit => infinite resistance
-        return Double.POSITIVE_INFINITY;
+        return resistanceOhms;
     }
 
     public double getCapacitance() {
         return capacitance;
     }
-    
+
     @Override
-    public double getImpedance(double frequency) {
-        // Z_c = 1 / (2 * pi * f * C)
-        // If DC (freq = 0), impedance is infinite (Open Circuit)
-        if (frequency <= 0) return Double.POSITIVE_INFINITY;
-        return 1.0 / (2.0 * Math.PI * frequency * capacitance);
+    public Rectangle getBounds() {
+        return new Rectangle(x - width / 2, y - height / 2, width, height);
     }
-	@Override
-	public Rectangle getBounds() {
-		return new Rectangle(x - width / 2, y - height / 2, width, height);
-	}
 }

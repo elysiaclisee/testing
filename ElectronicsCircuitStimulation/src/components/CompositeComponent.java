@@ -5,19 +5,42 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CompositeComponent extends Components {
-	private List<Components> children = new ArrayList<>();
+    private List<Components> children = new ArrayList<>();
     private Mode mode = Mode.SERIES;
 
-    public enum Mode { SERIES, PARALLEL }
-
-    public CompositeComponent(String id, int x, int y) { super(id, x, y); }
-
-    // ... (Keep existing constructors and generic methods) ...
-
-    @Override
-    public double getResistanceOhms() {
-        return getImpedance(0); // Default to DC
+    public enum Mode {
+        SERIES, PARALLEL
     }
+
+    public CompositeComponent(String id, int x, int y) {
+        super(id, x, y);
+    }
+
+    public CompositeComponent(String id, int x, int y, Mode mode, List<Components> parts) {
+        super(id, x, y);
+        this.mode = mode;
+        this.children = parts;
+        this.width = 100;
+        this.height = 60;
+    }
+
+    public void add(Components component) {
+        children.add(component);
+    }
+
+    public List<Components> getChildren() {
+        return children;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode;
+    }
+
+    public Mode getMode() {
+        return mode;
+    }
+
+    // --- Recursive Physics Calculations ---
 
     @Override
     public double getImpedance(double frequency) {
@@ -32,74 +55,109 @@ public class CompositeComponent extends Components {
         } else { // PARALLEL
             double inverseZ = 0.0;
             boolean hasShort = false;
+            
             for (Components c : children) {
                 double z = c.getImpedance(frequency);
-                if (z <= 1e-9) hasShort = true; // Handle effectively 0 impedance
-                if (!Double.isInfinite(z) && z > 0) {
+                
+                // Check for short circuit (0 impedance)
+                if (Math.abs(z) < 1e-9) hasShort = true;
+                
+                // Add admittance (1/Z) only if Z is valid
+                if (!Double.isInfinite(z) && z > 1e-9) {
                     inverseZ += 1.0 / z;
                 }
             }
-            if (hasShort) return 0.0;
-            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY;
+            
+            if (hasShort) return 0.0; // Short circuit dominates parallel
+            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY; // Open circuit
             return 1.0 / inverseZ;
         }
     }
 
-    /**
-     * Recursively distributes Voltage and Current to children based on circuit laws.
-     */
     @Override
-    public void setSimulationState(double voltage, double current) {
-        // 1. Store state for this composite container
-        super.setSimulationState(voltage, current);
+    public void setSimulationState(double voltage, double current, double frequency) {
+        // 1. Store state for this container
+        super.setSimulationState(voltage, current, frequency);
 
-        // 2. Distribute to children
         if (children.isEmpty()) return;
 
-        // Get the frequency from context or passed down? 
-        // For simplicity in this architecture, we recalculate impedances or 
-        // assume impedance was cached. Here we re-fetch assuming freq is available 
-        // or we calculate ratios based on R (DC) if freq is missing. 
-        // Ideally, solve() should accept frequency.
-        // Let's assume we use the cached values implied by the passed voltage/current.
-        
         if (mode == Mode.SERIES) {
-            // SERIES: Current is constant, Voltage splits.
-            // V_child = V_total * (Z_child / Z_total)
+            // SERIES: Current is constant, Voltage splits based on Impedance
+            // I_child = I_total
+            // V_child = I_total * Z_child
+            
             for (Components c : children) {
-                // Approximate distribution based on DC Resistance for now, 
-                // or you need to pass frequency into setSimulationState.
-                // Assuming DC/Resistive logic for distribution to keep code simple:
-                double childR = c.getResistanceOhms(); 
-                double totalR = this.getResistanceOhms();
+                double childZ = c.getImpedance(frequency);
+                double childV;
                 
-                double childV = (Double.isInfinite(totalR)) ? voltage : voltage * (childR / totalR);
-                
-                // If this is an open circuit (Infinite R), the open component takes ALL voltage
-                if (Double.isInfinite(childR) && Double.isInfinite(totalR)) {
-                     // Heuristic: Split voltage equally among open components or give to first
+                if (Double.isInfinite(childZ)) {
+                     // If one component is open in series, it takes full voltage
                      childV = voltage; 
+                } else {
+                     childV = current * childZ;
                 }
-
-                c.setSimulationState(childV, current);
+                
+                c.setSimulationState(childV, current, frequency);
             }
+            
         } else {
-            // PARALLEL: Voltage is constant, Current splits.
-            // I_child = I_total * (Z_total / Z_child) OR I_child = V / Z_child
+            // PARALLEL: Voltage is constant, Current splits based on Impedance
+            // V_child = V_total
+            // I_child = V_total / Z_child
+            
             for (Components c : children) {
-                double childR = c.getResistanceOhms();
-                double childI = (childR <= 0) ? 0 : voltage / childR;
+                double childZ = c.getImpedance(frequency);
+                double childI;
                 
-                if (Double.isInfinite(childR)) childI = 0.0;
+                if (childZ < 1e-9) {
+                    // Avoid divide by zero on short circuit
+                    childI = current; // Simplification: short takes all available current
+                } else if (Double.isInfinite(childZ)) {
+                    childI = 0.0;
+                } else {
+                    childI = voltage / childZ;
+                }
                 
-                c.setSimulationState(voltage, childI);
+                c.setSimulationState(voltage, childI, frequency);
             }
         }
     }
+    
+    // --- Standard Methods ---
 
-	@Override
-	public Rectangle getBounds() {
-		// TODO Auto-generated method stub
-		return null;
-	}
+    @Override
+    public double getResistanceOhms() {
+        return getImpedance(0); // DC resistance
+    }
+
+    @Override
+    public void draw(Graphics2D g2) {
+        int left = x - width/2;
+        int top = y - height/2;
+        // draw a box representing the composite
+        g2.setColor(new Color(220, 220, 250));
+        g2.fillRect(left, top, width, height);
+        g2.setColor(Color.BLACK);
+        g2.drawRect(left, top, width, height);
+
+        g2.setFont(g2.getFont().deriveFont(12f));
+        String label = mode == Mode.SERIES ? "Series" : "Parallel";
+        FontMetrics fm = g2.getFontMetrics();
+        int lx = x - fm.stringWidth(label)/2;
+        int ly = y + fm.getAscent()/2;
+        g2.drawString(label, lx, ly);
+
+        if (selected) {
+            g2.setColor(Color.BLACK);
+            g2.setStroke(new BasicStroke(2));
+            Rectangle bounds = getBounds();
+            g2.draw(new Rectangle(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4));
+            g2.setStroke(new BasicStroke(1));
+        }
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return new Rectangle(x - width / 2, y - height / 2, width, height);
+    }
 }

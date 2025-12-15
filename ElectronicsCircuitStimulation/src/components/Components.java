@@ -9,11 +9,10 @@ public abstract class Components implements Cloneable {
     protected boolean selected = false;
     protected String id;
     
-    // --- ADD THIS LINE BACK ---
-    protected double resistanceOhms; 
-    // --------------------------
+    // Physical Properties
+    protected double resistanceOhms; // Base DC resistance (for resistors/inductors)
 
-    // Simulation State
+    // Simulation State (Calculated during simulation)
     protected double voltageDrop = 0.0;
     protected double currentFlow = 0.0;
 
@@ -22,9 +21,32 @@ public abstract class Components implements Cloneable {
         this.x = x;
         this.y = y;
     }
-    
-    // ... (rest of the class remains the same)
-    
+
+    // --- Core Physics Methods ---
+
+    /**
+     * Calculates Impedance (Z) based on frequency.
+     * @param frequency Hz (0 for DC)
+     * @return Impedance in Ohms
+     */
+    public abstract double getImpedance(double frequency);
+
+    /**
+     * Distributes Voltage and Current to this component (and children if composite).
+     * @param voltage The voltage drop across this component.
+     * @param current The current flowing through this component.
+     * @param frequency The frequency of the source (needed for distribution ratios).
+     */
+    public void setSimulationState(double voltage, double current, double frequency) {
+        this.voltageDrop = voltage;
+        this.currentFlow = current;
+    }
+
+    // --- Getters & Setters ---
+
+    public double getVoltageDrop() { return voltageDrop; }
+    public double getCurrentFlow() { return currentFlow; }
+
     public void setPosition(int x, int y) {
         this.x = x;
         this.y = y;
@@ -33,7 +55,7 @@ public abstract class Components implements Cloneable {
     public Point getPosition() {
         return new Point(x, y);
     }
-    
+
     public boolean contains(Point p) {
         Rectangle r = new Rectangle(x - width/2, y - height/2, width, height);
         return r.contains(p);
@@ -51,18 +73,11 @@ public abstract class Components implements Cloneable {
         return id;
     }
 
-    public abstract double getImpedance(double frequency);
-
-    public void setSimulationState(double voltage, double current) {
-        this.voltageDrop = voltage;
-        this.currentFlow = current;
-    }
-
-    public double getVoltageDrop() { return voltageDrop; }
-    public double getCurrentFlow() { return currentFlow; }
-    
+    // kept for compatibility, but getImpedance is preferred
     public abstract double getResistanceOhms(); 
     public abstract Rectangle getBounds();
+
+    // --- Drawing ---
 
     public void draw(Graphics2D g2) {
         draw(g2, Color.LIGHT_GRAY);
