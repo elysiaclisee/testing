@@ -24,9 +24,10 @@ public class Bulb extends Components {
     public double getPowerLimit() {
         return powerLimit;
     }
+
     @Override
     public double getImpedance(double frequency) {
-        return resistance; // Bulbs act like resistors
+        return resistance;
     }
     @Override
     public void draw(Graphics2D g2) {
@@ -43,7 +44,7 @@ public class Bulb extends Components {
     }
 
     @Override
-    public double getResistanceOhms() {
+    public double getResistance() {
         return resistance;
     }
 

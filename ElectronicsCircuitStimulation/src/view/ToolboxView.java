@@ -16,7 +16,7 @@ public class ToolboxView {
     private final Rectangle[] slots = new Rectangle[5];
 
     // --- 1. Create "Dummy" Components for display purposes ---
-    private final PowerSource sampleSource;
+    private PowerSource sampleSource;
     private final Resistor sampleResistor;
     private final Bulb sampleBulb;
     private final Capacitor sampleCapacitor;
@@ -36,7 +36,7 @@ public class ToolboxView {
         }
 
         // --- 2. Initialize the dummies (0,0 is temporary) ---
-        sampleSource = new PowerSource("Display", 0, 0, 0.0, 0.0);
+        sampleSource = new PowerSource("Display", 0, 0, 5.0, 0.0);
         sampleResistor = new Resistor("Display", 0, 0, 0);
         sampleBulb = new Bulb("Display", 0, 0);
         sampleCapacitor = new Capacitor("Display", 0, 0, 0);
@@ -48,7 +48,12 @@ public class ToolboxView {
         sampleCapacitor.setSelected(false);
         sampleInductor.setSelected(false);
     }
-
+    
+    public void updatePowerSourceDisplay(double voltage, double frequency) {
+        this.sampleSource = new PowerSource("Display", 0, 0, voltage, frequency);
+        this.sampleSource.setSelected(false);
+    }
+    
     public void draw(Graphics2D g2) {
         g2.setColor(new Color(230, 230, 230));
         g2.fillRect(X, Y, WIDTH, HEIGHT);

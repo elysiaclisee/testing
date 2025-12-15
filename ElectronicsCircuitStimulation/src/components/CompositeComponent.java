@@ -5,101 +5,155 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CompositeComponent extends Components {
-	private List<Components> children = new ArrayList<>();
+    private List<Components> children = new ArrayList<>();
     private Mode mode = Mode.SERIES;
 
-    public enum Mode { SERIES, PARALLEL }
+    public enum Mode {
+        SERIES, PARALLEL
+    }
 
-    public CompositeComponent(String id, int x, int y) { super(id, x, y); }
+    public CompositeComponent(String id, int x, int y) {
+        super(id, x, y);
+    }
+    
+    // Added helper constructor to match your usage
+    public CompositeComponent(String id, int x, int y, Mode mode, List<Components> parts) {
+        super(id, x, y);
+        this.mode = mode;
+        this.children = parts;
+        this.width = 100;
+        this.height = 60;
+    }
 
-    // ... (Keep existing constructors and generic methods) ...
+    public void add(Components component) {
+        children.add(component);
+    }
+    
+    public List<Components> getChildren() {
+        return children;
+    }
 
-    @Override
-    public double getResistanceOhms() {
-        return getImpedance(0); // Default to DC
+    public void setMode(Mode mode) {
+        this.mode = mode;
+    }
+    
+    public Mode getMode() {
+        return mode;
     }
 
     @Override
     public double getImpedance(double frequency) {
-        if (children == null || children.isEmpty()) return Double.POSITIVE_INFINITY;
-        
+        if (children.isEmpty()) return Double.POSITIVE_INFINITY;
+
         if (mode == Mode.SERIES) {
             double totalZ = 0.0;
             for (Components c : children) {
                 totalZ += c.getImpedance(frequency);
             }
             return totalZ;
-        } else { // PARALLEL
+        } else {
             double inverseZ = 0.0;
             boolean hasShort = false;
+
             for (Components c : children) {
                 double z = c.getImpedance(frequency);
-                if (z <= 1e-9) hasShort = true; // Handle effectively 0 impedance
-                if (!Double.isInfinite(z) && z > 0) {
-                    inverseZ += 1.0 / z;
-                }
+                if (Math.abs(z) < 1e-9) { hasShort = true; break; }
+                if (!Double.isInfinite(z)) inverseZ += 1.0 / z;
             }
-            if (hasShort) return 0.0;
-            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY;
+
+            if (hasShort) return 0.0; 
+            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY; 
             return 1.0 / inverseZ;
         }
     }
 
-    /**
-     * Recursively distributes Voltage and Current to children based on circuit laws.
-     */
     @Override
-    public void setSimulationState(double voltage, double current) {
-        // 1. Store state for this composite container
-        super.setSimulationState(voltage, current);
+    public void setSimulationState(double voltage, double current, double frequency) {
+        super.setSimulationState(voltage, current, frequency); // Store state
 
-        // 2. Distribute to children
         if (children.isEmpty()) return;
 
-        // Get the frequency from context or passed down? 
-        // For simplicity in this architecture, we recalculate impedances or 
-        // assume impedance was cached. Here we re-fetch assuming freq is available 
-        // or we calculate ratios based on R (DC) if freq is missing. 
-        // Ideally, solve() should accept frequency.
-        // Let's assume we use the cached values implied by the passed voltage/current.
-        
         if (mode == Mode.SERIES) {
-            // SERIES: Current is constant, Voltage splits.
-            // V_child = V_total * (Z_child / Z_total)
-            for (Components c : children) {
-                // Approximate distribution based on DC Resistance for now, 
-                // or you need to pass frequency into setSimulationState.
-                // Assuming DC/Resistive logic for distribution to keep code simple:
-                double childR = c.getResistanceOhms(); 
-                double totalR = this.getResistanceOhms();
-                
-                double childV = (Double.isInfinite(totalR)) ? voltage : voltage * (childR / totalR);
-                
-                // If this is an open circuit (Infinite R), the open component takes ALL voltage
-                if (Double.isInfinite(childR) && Double.isInfinite(totalR)) {
-                     // Heuristic: Split voltage equally among open components or give to first
-                     childV = voltage; 
-                }
-
-                c.setSimulationState(childV, current);
-            }
+            handleSeriesDistribution(voltage, current, frequency);
         } else {
-            // PARALLEL: Voltage is constant, Current splits.
-            // I_child = I_total * (Z_total / Z_child) OR I_child = V / Z_child
-            for (Components c : children) {
-                double childR = c.getResistanceOhms();
-                double childI = (childR <= 0) ? 0 : voltage / childR;
-                
-                if (Double.isInfinite(childR)) childI = 0.0;
-                
-                c.setSimulationState(voltage, childI);
+            handleParallelDistribution(voltage, frequency);
+        }
+    }
+    
+    private void handleSeriesDistribution(double totalVoltage, double totalCurrent, double frequency) {
+        int openComponents = 0;
+        
+        for(Components c : children) {
+            if(Double.isInfinite(c.getImpedance(frequency))) openComponents++;
+        }
+
+        for (Components c : children) {
+            double z = c.getImpedance(frequency);
+            double vDrop;
+
+            if (openComponents > 0) {
+                // If open circuit, voltage appears across the open gap
+                if (Double.isInfinite(z)) {
+                    vDrop = totalVoltage / openComponents; 
+                } else {
+                    vDrop = 0.0; 
+                }
+            } else {
+                vDrop = totalCurrent * z;
             }
+            c.setSimulationState(vDrop, totalCurrent, frequency);
         }
     }
 
-	@Override
-	public Rectangle getBounds() {
-		// TODO Auto-generated method stub
-		return null;
-	}
+    private void handleParallelDistribution(double totalVoltage, double frequency) {
+        for (Components c : children) {
+            double z = c.getImpedance(frequency);
+            double iBranch;
+            if (Math.abs(z) < 1e-9) {
+                // If shorted, it conceptually takes max current, but for sim safety:
+                iBranch = (this.getImpedance(frequency) < 1e-9) ? this.currentFlow : 0;
+            } else if (Double.isInfinite(z)) {
+                iBranch = 0.0;
+            } else {
+                iBranch = totalVoltage / z;
+            }
+            c.setSimulationState(totalVoltage, iBranch, frequency);
+        }
+    }
+
+    @Override
+    public double getResistance() {
+        return getImpedance(0);
+    }
+
+    @Override
+    public void draw(Graphics2D g2) {
+        int left = x - width/2;
+        int top = y - height/2;
+        // draw a box representing the composite
+        g2.setColor(new Color(220, 220, 250));
+        g2.fillRect(left, top, width, height);
+        g2.setColor(Color.BLACK);
+        g2.drawRect(left, top, width, height);
+
+        g2.setFont(g2.getFont().deriveFont(12f));
+        String label = mode == Mode.SERIES ? "Series" : "Parallel";
+        FontMetrics fm = g2.getFontMetrics();
+        int lx = x - fm.stringWidth(label)/2;
+        int ly = y + fm.getAscent()/2;
+        g2.drawString(label, lx, ly);
+
+        if (selected) {
+            g2.setColor(Color.BLACK);
+            g2.setStroke(new BasicStroke(2));
+            Rectangle bounds = getBounds();
+            g2.draw(new Rectangle(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4));
+            g2.setStroke(new BasicStroke(1));
+        }
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        return new Rectangle(x - width / 2, y - height / 2, width, height);
+    }
 }

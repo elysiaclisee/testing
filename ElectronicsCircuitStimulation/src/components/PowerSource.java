@@ -1,8 +1,6 @@
 package components;
 
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
-import java.awt.FontMetrics;
+import java.awt.*;
 import java.awt.geom.Rectangle2D;
 
 public class PowerSource extends Components {
@@ -20,6 +18,7 @@ public class PowerSource extends Components {
     @Override
     public void draw(Graphics2D g2) {
         draw(g2, java.awt.Color.GREEN);
+        g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
         String vLabel = formatDouble(voltage) + "V";
         String fLabel = formatDouble(frequency) + "Hz";
         FontMetrics fm = g2.getFontMetrics();
@@ -43,7 +42,7 @@ public class PowerSource extends Components {
     }
 
     @Override
-    public double getResistanceOhms() {
+    public double getResistance() {
         return 0;
     }
 
@@ -59,10 +58,9 @@ public class PowerSource extends Components {
     public double getVoltage() {
         return voltage;
     }
-
-	@Override
-	public double getImpedance(double frequency) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
+    
+    @Override
+    public double getImpedance(double frequency) {
+        return 0.0; // Ideal source
+    }
 }

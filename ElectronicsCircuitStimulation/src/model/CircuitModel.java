@@ -15,12 +15,19 @@ public class CircuitModel {
     public Point dragOffset = null;
     public Components firstSelected = null;
     public Components secondSelected = null;
+    public BoardTerminal termLeft;
+    public BoardTerminal termRight;
 
     public CircuitModel() {
         this.circuit = new Circuit();
         this.wires = new ArrayList<>();
         this.undoStack = new ArrayList<>();
         this.redoStack = new ArrayList<>();
+        termLeft = new BoardTerminal("(-)", 0, 0);
+        termRight = new BoardTerminal("(+)", 0, 0);
+        
+        circuit.addComponent(termLeft);
+        circuit.addComponent(termRight);
     }
 
     public Circuit getCircuit() { return circuit; }
