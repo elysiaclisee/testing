@@ -7,22 +7,28 @@ import java.awt.*;
 
 @SuppressWarnings("serial")
 public class CircuitPanel extends JPanel {
-    // UI Constants
-    public final Rectangle boardRect = new Rectangle(10, 150, 965, 500);
+    // Đẩy Board xuống thấp hơn chút nữa để có chỗ cho 2 dòng thông số
+    public final Rectangle boardRect = new Rectangle(10, 180, 965, 470);
+    
     public final ToolboxView toolboxView = new ToolboxView();
 
-    // UI Components (Made public so Controller can access them like before)
-    public final JButton seriesBtn = new JButton("Series");
-    public final JButton parallelBtn = new JButton("Parallel");
+    public final JButton seriesBtn = new JButton("Series Connect");
+    public final JButton parallelBtn = new JButton("Parallel Connect");
     public final JButton undoBtn = new JButton("Undo");
     public final JButton helpBtn = new JButton("Help");
-    public final JLabel instructionLabel = new JLabel("Select two components and click a connect button.");
-    public final JLabel circuitStatsLabel = new JLabel("Circuit: -");
-    public final JLabel componentValuesLabel = new JLabel("Selection: None");
+
+    // --- CÁC LABEL HIỂN THỊ THÔNG SỐ ---
+    // Dòng 1: Nguồn, Dòng tổng, Áp tổng (Yêu cầu của bạn)
+    public final JLabel mainStatsLabel = new JLabel("Source: 0V | Total I: 0A | V_Bulb: 0V");
     
- // THÊM: Khu vực chọn chế độ bóng đèn
-    public final JRadioButton rbSeriesBulb = new JRadioButton("Bulb Series Mode", true); // Mặc định chọn
-    public final JRadioButton rbParallelBulb = new JRadioButton("Bulb Parallel Mode");
+    // Dòng 2: Trạng thái bóng đèn cụ thể (Sáng/Tối và con số W)
+    public final JLabel bulbStatusLabel = new JLabel("Bulb Status: Waiting..."); 
+    
+    // Dòng 3: Chi tiết linh kiện đang chọn
+    public final JLabel selectionLabel = new JLabel("Selection: None");
+
+    public final JRadioButton rbSeriesBulb = new JRadioButton("Mode: Bulb Series (Nối tiếp)", true); 
+    public final JRadioButton rbParallelBulb = new JRadioButton("Mode: Bulb Parallel (Song song)");
     public final ButtonGroup modeGroup = new ButtonGroup();
 
     private final CircuitModel model;
@@ -32,39 +38,48 @@ public class CircuitPanel extends JPanel {
         setLayout(null);
         setBackground(Color.WHITE);
 
-        // UI Setup logic moved from constructor
-        seriesBtn.setBounds(560, 30, 90, 28);
-        parallelBtn.setBounds(650, 30, 90, 28);
-        undoBtn.setBounds(740, 30, 90, 28);
-        helpBtn.setBounds(830, 30, 90, 28);
-        instructionLabel.setBounds(565, 65, 400, 20);
-        circuitStatsLabel.setBounds(565, 85, 400, 20);
-        componentValuesLabel.setBounds(565, 105, 400, 20);
+        int startX = 560; // Cột bên phải
 
-        instructionLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
-        circuitStatsLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
-        componentValuesLabel.setForeground(new Color(0, 100, 0));
-        
-     // Thêm nút vào GUI (Vị trí tùy bạn chỉnh lại cho đẹp)
-        rbSeriesBulb.setBounds(10, 110, 150, 30);
-        rbParallelBulb.setBounds(170, 110, 150, 30);
+        // 1. Hàng nút bấm (Giữ nguyên)
+        seriesBtn.setBounds(startX, 15, 130, 28);
+        parallelBtn.setBounds(startX + 140, 15, 130, 28);
+        undoBtn.setBounds(startX + 280, 15, 70, 28);
+        helpBtn.setBounds(startX + 360, 15, 70, 28);
+
+        // 2. Chế độ chọn (Radio Button)
+        rbSeriesBulb.setBounds(startX, 50, 200, 25);
+        rbParallelBulb.setBounds(startX + 210, 50, 220, 25);
         rbSeriesBulb.setBackground(Color.WHITE);
         rbParallelBulb.setBackground(Color.WHITE);
         
+        // 3. --- KHU VỰC THÔNG SỐ (MỚI) ---
+        
+        // Dòng 1: Main Stats (To, Đậm, Màu Xanh Dương)
+        mainStatsLabel.setBounds(startX, 85, 400, 25);
+        mainStatsLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        mainStatsLabel.setForeground(new Color(0, 51, 153)); // Xanh đậm
+        
+        // Dòng 2: Bulb Status (Quan trọng để biết thắng thua - Màu Đỏ/Cam)
+        bulbStatusLabel.setBounds(startX, 115, 400, 25);
+        bulbStatusLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        bulbStatusLabel.setForeground(new Color(204, 0, 0)); // Đỏ
+        
+        // Dòng 3: Selection
+        selectionLabel.setBounds(startX, 145, 400, 20);
+        selectionLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        selectionLabel.setForeground(Color.DARK_GRAY);
+
+        // Add components
+        add(seriesBtn); add(parallelBtn); add(undoBtn); add(helpBtn);
+        add(rbSeriesBulb); add(rbParallelBulb);
+        add(mainStatsLabel);
+        add(bulbStatusLabel);
+        add(selectionLabel);
+        
         modeGroup.add(rbSeriesBulb);
         modeGroup.add(rbParallelBulb);
-        
-        add(rbSeriesBulb);
-        add(rbParallelBulb);
 
-        add(seriesBtn);
-        add(parallelBtn);
-        add(undoBtn);
-        add(helpBtn);
-        add(instructionLabel);
-        add(circuitStatsLabel);
-        add(componentValuesLabel);
-        helpBtn.addActionListener(e -> showHelpWindow());
+        helpBtn.addActionListener(e -> showHelp());
     }
     
     @Override
@@ -73,89 +88,30 @@ public class CircuitPanel extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        Stroke originalStroke = g2.getStroke();
-        Color originalColor = g2.getColor();
-
-        toolboxView.draw(g2);
-
+        // Vẽ các phần cũ
+        toolboxView.draw(g2); 
+        
         g2.setColor(new Color(245, 255, 245));
         g2.fill(boardRect);
         g2.setColor(Color.GRAY);
         g2.draw(boardRect);
+        
         g2.setFont(g2.getFont().deriveFont(12f));
         g2.setColor(Color.DARK_GRAY);
-        g2.drawString("Circuit Board", boardRect.x + 8, boardRect.y + 16);
+        g2.drawString("Circuit Board Area", boardRect.x + 8, boardRect.y + 16);
 
-        // Accessing data via model
+        // Vẽ dây & linh kiện
+        Stroke oldStroke = g2.getStroke();
         for (Wire w : model.getWires()) w.draw(g2);
-
-        g2.setStroke(originalStroke);
-        g2.setColor(originalColor);
+        g2.setStroke(oldStroke);
 
         for (Components c : model.getCircuit().getComponents()) {
             c.draw(g2);
-            g2.setStroke(originalStroke);
-            g2.setColor(originalColor);
+            g2.setStroke(oldStroke);
         }
-
-        g2.setColor(Color.DARK_GRAY);
-        g2.drawString("Click toolbox to add. Drag to move. Select two & connect.", 10, boardRect.y - 6);
-    }
-    
-//If the window size is not the issue, it might be a Z-Order issue (the component sliding under the board). 
-//This happens if the component is drawn before the board background.
-//Check your CircuitPanel.java -> paintComponent method. The order MUST be:
-//Draw Board Background (First)
-//Draw Grid/Wires
-//Draw Components (Last)
-    
-    private void showHelpWindow() {
-        Window parentWindow = SwingUtilities.getWindowAncestor(this);
-        
-        // Create a Dialog (Modal means you must close it to go back to the app)
-        JDialog helpDialog = new JDialog(parentWindow, "Circuit Simulator Help", Dialog.ModalityType.APPLICATION_MODAL);
-        
-        // Create the text area
-        JTextArea helpText = new JTextArea();
-        helpText.setText(getHelpContent()); // Helper method for the text
-        helpText.setEditable(false);        // User cannot edit
-        helpText.setLineWrap(true);         // Wrap long lines
-        helpText.setWrapStyleWord(true);    // Wrap at word boundaries
-        helpText.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        helpText.setMargin(new Insets(10, 10, 10, 10)); // Padding
-
-        JScrollPane scrollPane = new JScrollPane(helpText);
-        // Ensure scrollbar always shows if needed
-        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
-
-        helpDialog.add(scrollPane);
-
-        // Match the size of the parent app
-        if (parentWindow != null) {
-            helpDialog.setSize(parentWindow.getSize());
-            helpDialog.setLocationRelativeTo(parentWindow); // Center it
-        } else {
-            helpDialog.setSize(800, 600); // Fallback size
-        }
-
-        helpDialog.setVisible(true);
     }
 
-    // Put your long text here to keep code clean
-    private String getHelpContent() {
-        return """
-Welcome to our Circuit Simulator!
-This application allows you to create and simulate simple electronic circuits using components like resistors, capacitors, inductors, bulbs, and a power source.
- 
-Before you start, here are some key notes you must read:
-- Default power source type is AC (Alternating Current). This is why only one power source is allowed in the circuit.
-Design your circuit freely, then connect 2 components on 2 end each to a point on 2 opposite edges. That's how we connect to power source.
-This ensures our circuit is closed.  	                      
-- Dragging components to borders of the circuit board may make them inaccessible. Please keep components within the visible area. 
-- If you want to connect 2 components, select the first one, then hit CTRL and select the second one. Then click connection buttons to connect them.
-- For simplicity, right now only 1 bulb is supported. 
-
-Thank you for understanding these limitations as we work to improve the simulator in future versions!
-                """;
+    private void showHelp() {
+        JOptionPane.showMessageDialog(this, "Set Power Source > Connect Components > Check Stats!");
     }
 }
