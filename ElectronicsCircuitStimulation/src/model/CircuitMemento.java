@@ -3,7 +3,6 @@ package model;
 import components.Components;
 import components.Wire;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 

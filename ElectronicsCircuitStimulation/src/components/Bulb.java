@@ -3,17 +3,24 @@ package components;
 import java.awt.*;
 
 public class Bulb extends Components {
+    private double resistance;
+    private double powerLimit; // The "Wattage" (e.g., 100W)
     private boolean isLighted = false;
-    private double powerLimit;
 
-    public Bulb(String id, int x, int y, double resistance, double powerLimit) {
+    // 1. Constructor: We ask for Voltage and Power Limit (Wattage)
+    public Bulb(String id, int x, int y, double voltage, double powerLimit) {
         super(id, x, y);
-        this.resistanceOhms = resistance;
         this.powerLimit = powerLimit;
+        // Physics Formula: R = V^2 / P
+        if (powerLimit > 0) {
+            this.resistance = (voltage * voltage) / powerLimit;
+        } else {
+            this.resistance = Double.POSITIVE_INFINITY;
+        }
     }
 
     public Bulb(String id, int x, int y) {
-        this(id, x, y, 220.0, 100.0); // Default resistance and power limit
+        this(id, x, y, 220.0, 100.0); 
     }
 
     public void setLighted(boolean lighted) {
@@ -25,33 +32,27 @@ public class Bulb extends Components {
     }
 
     @Override
-    public double getImpedance(double frequency) {
-        // Bulb is purely resistive (mostly)
-        return resistanceOhms;
+    public double getResistance() {
+        return resistance;
     }
 
     @Override
-    public double getResistanceOhms() {
-        return resistanceOhms;
+    public double getImpedance(double frequency) {
+        return resistance;
     }
 
     @Override
     public void draw(Graphics2D g2) {
-        // Visual feedback based on simulation state
-        Color fillColor = isLighted ? Color.YELLOW : Color.DARK_GRAY;
-        draw(g2, fillColor);
-
-        g2.setColor(Color.WHITE);
-        g2.setFont(g2.getFont().deriveFont(12f));
-        FontMetrics fm = g2.getFontMetrics();
-        String s = "Bulb";
-        int sx = x - fm.stringWidth(s)/2;
-        int sy = y + fm.getAscent()/2;
-        g2.drawString(s, sx, sy);
+        Color c = isLighted ? Color.YELLOW : Color.DARK_GRAY;
+        super.draw(g2, c); 
+        g2.setColor(isLighted ? Color.BLACK : Color.WHITE);
+        g2.setFont(g2.getFont().deriveFont(10f));
         
-        // Optional: Draw V/I for debugging
-        // String debug = String.format("%.1fV", voltageDrop);
-        // g2.drawString(debug, x, y - 20);
+        String label = (int)powerLimit + "W";
+        FontMetrics fm = g2.getFontMetrics();
+        int tx = x - fm.stringWidth(label) / 2;
+        int ty = y + fm.getAscent() / 2;
+        g2.drawString(label, tx, ty);
     }
 
     @Override

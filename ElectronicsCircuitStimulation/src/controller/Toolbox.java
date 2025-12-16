@@ -26,6 +26,7 @@ public class Toolbox {
                 return new Inductor(id, x, y, val1);
             case BULB:
                 return new Bulb(id, x, y);
+                
             default:
                 return null;
         }
