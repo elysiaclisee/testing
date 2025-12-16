@@ -229,10 +229,10 @@ public class CircuitController {
 
         if (involveTerminal) {
             // FIX: Use 'mode' instead of 'type'
-            if (mode == CompositeComponent.Mode.PARALLEL) {
-                view.instructionLabel.setText("Board terminals only support SERIES connections.");
-                return;
-            }
+        	if (mode == CompositeComponent.Mode.PARALLEL) {
+        	    view.instructionLabel.setText("Board terminals only support SERIES connections.");
+        	    return;
+        	}
 
             if (isTerm1 && getConnectionCount(c1) >= 1) {
                 view.instructionLabel.setText("Terminal " + c1.getId() + " is already occupied.");

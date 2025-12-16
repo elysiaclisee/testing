@@ -43,7 +43,7 @@ public class CompositeComponent extends Components {
 
     @Override
     public double getImpedance(double frequency) {
-        if (children.isEmpty()) return Double.POSITIVE_INFINITY;
+        if (children.isEmpty()) return Double.POSITIVE_INFINITY; //open circuit
 
         if (mode == Mode.SERIES) {
             double totalZ = 0.0;
@@ -53,17 +53,17 @@ public class CompositeComponent extends Components {
             return totalZ;
         } else {
             double inverseZ = 0.0;
-            boolean hasShort = false;
+            boolean hasShort = false; // check for short circuit
 
             for (Components c : children) {
                 double z = c.getImpedance(frequency);
-                if (Math.abs(z) < 1e-9) { hasShort = true; break; }
-                if (!Double.isInfinite(z)) inverseZ += 1.0 / z;
+                if (Math.abs(z) < 1e-9) { hasShort = true; break; } // short circuit (no R) then flow through that path
+                if (!Double.isInfinite(z)) inverseZ += 1.0 / z; //parallel formula
             }
 
             if (hasShort) return 0.0; 
-            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY; 
-            return 1.0 / inverseZ;
+            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY; //condition 
+            return 1.0 / inverseZ; //reverse back 
         }
     }
 
@@ -101,7 +101,7 @@ public class CompositeComponent extends Components {
             } else {
                 vDrop = totalCurrent * z;
             }
-            c.setSimulationState(vDrop, totalCurrent, frequency);
+            c.setSimulationState(vDrop, totalCurrent, frequency); //loop like a tree traversal 
         }
     }
 
@@ -111,7 +111,7 @@ public class CompositeComponent extends Components {
             double iBranch;
             if (Math.abs(z) < 1e-9) {
                 // If shorted, it conceptually takes max current, but for sim safety:
-                iBranch = (this.getImpedance(frequency) < 1e-9) ? this.currentFlow : 0;
+                iBranch = (this.getImpedance(frequency) < 1e-9) ? this.currentFlow : 0; //calculate I 
             } else if (Double.isInfinite(z)) {
                 iBranch = 0.0;
             } else {
