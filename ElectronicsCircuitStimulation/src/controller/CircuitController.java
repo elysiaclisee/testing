@@ -6,6 +6,7 @@ import view.CircuitPanel;
 import components.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.List;
 
 public class CircuitController {
     private final CircuitModel model;
@@ -17,43 +18,184 @@ public class CircuitController {
         this.model = model;
         this.view = view;
         
-     // Setup Terminals (Cọc nối nguồn trên board)
-        int midY = view.boardRect.y + view.boardRect.height / 2;
-        model.termLeft.setPosition(view.boardRect.x, midY);
-        model.termRight.setPosition(view.boardRect.x + view.boardRect.width, midY);
-        view.repaint();
-
-        // Listeners cho nút bấm
-        view.seriesBtn.addActionListener(e -> connectSelected(CompositeComponent.Mode.SERIES));
-        view.parallelBtn.addActionListener(e -> connectSelected(CompositeComponent.Mode.PARALLEL));
-        view.undoBtn.addActionListener(e -> undo());
-
-        // Listener cho chế độ bóng đèn (Sửa lỗi logic cũ)
+     // THÊM: Listener cho việc đổi chế độ Game
         ActionListener modeListener = e -> {
             if (view.rbSeriesBulb.isSelected()) {
                 this.gameMode = CircuitManager.ConnectionMode.SERIES_WITH_BULB;
             } else {
                 this.gameMode = CircuitManager.ConnectionMode.PARALLEL_WITH_BULB;
             }
-            updateCircuit(); 
+            updateCircuit(); // Tính toán lại ngay khi đổi chế độ
         };
+
         view.rbSeriesBulb.addActionListener(modeListener);
         view.rbParallelBulb.addActionListener(modeListener);
+        
+        // Setup Terminals
+        int midY = view.boardRect.y + view.boardRect.height / 2;
+        model.termLeft.setPosition(view.boardRect.x, midY);
+        model.termRight.setPosition(view.boardRect.x + view.boardRect.width, midY);
+        view.repaint();
+
+        // Listeners
+        view.seriesBtn.addActionListener(e -> connectSelected(CompositeComponent.Mode.SERIES));
+        view.parallelBtn.addActionListener(e -> connectSelected(CompositeComponent.Mode.PARALLEL));
+        view.undoBtn.addActionListener(e -> undo());
 
         MouseAdapter ma = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                handleMousePress(e);
+                Point p = e.getPoint();
+                view.putClientProperty("pressPoint", p);
+                
+                Toolbox.Tool t = view.toolboxView.hitTool(p);
+
+                if (t != null) {
+                    // --- CASE 1: Power Source Tool (Updates Global Settings) ---
+                    if (t == Toolbox.Tool.POWER_SOURCE) {
+                        double[] vals = view.toolboxView.promptForPowerSource();
+                        if (vals == null) return; 
+
+                        view.toolboxView.updatePowerSourceDisplay(vals[0], vals[1]);
+                        model.circuit.setPowerSupply(vals[0], vals[1]);
+
+                        updateCircuit();
+                        view.repaint();
+                        return; 
+                    }
+                    
+                    // --- CASE 2: Component Tools (Creates new parts) ---
+                    double[] inputs = {};
+                    switch (t) {
+                        case RESISTOR:
+                            Double r = view.toolboxView.promptForValue("Resistor", "Ohms");
+                            if (r == null) return; 
+                            inputs = new double[]{r};
+                            break;
+                        case CAPACITOR:
+                            Double c = view.toolboxView.promptForValue("Capacitor", "F");
+                            if (c == null) return;
+                            inputs = new double[]{c};
+                            break;
+                        case INDUCTOR:
+                            Double l = view.toolboxView.promptForValue("Inductor", "H");
+                            if (l == null) return;
+                            inputs = new double[]{l};
+                            break;
+                        case BULB:
+                        	for (Components comp : model.circuit.getComponents()) {
+                                if (comp instanceof Bulb) return; // Limit 1 bulb
+                        	}
+                            break;
+                    }
+                    saveState();
+                    
+                    Components c = Toolbox.create(t, 
+                        view.boardRect.x + view.boardRect.width / 2, 
+                        view.boardRect.y + 40, 
+                        inputs);
+                    
+                    if (c == null) return;
+
+                    model.circuit.addComponent(c);                   
+                    clearSelection();
+                    c.setSelected(true);
+                    model.firstSelected = c;
+                    
+                    updateCircuit();
+                    view.repaint();
+                    return;
+                }
+
+                // --- CASE 3: Clicking on Existing Components ---
+                Components hit = componentAt(p);
+                if (hit != null) {
+                	if (hit instanceof BoardTerminal) {
+                        // Toggle selection for terminals
+                        handleSelection(hit, e.isControlDown());
+                        view.repaint();
+                        return; 
+                    }
+                    
+                    // Dragging logic
+                    model.dragging = hit;
+                    model.dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
+                    handleSelection(hit, e.isControlDown());
+                    
+                    updateCircuit();
+                    view.repaint();
+                    return;
+                }
+                
+                // --- CASE 4: Clicking Empty Board (Deselect) ---
+                if (view.boardRect.contains(p)) {
+                    clearSelection();
+                    updateCircuit();
+                    view.repaint();
+                }
             }
+            
+            // Helper to clean up selection logic
+            private void handleSelection(Components hit, boolean isCtrl) {
+                if (isCtrl) {
+                    if (hit.isSelected()) {
+                        hit.setSelected(false);
+                        if (model.firstSelected == hit) model.firstSelected = null;
+                        if (model.secondSelected == hit) model.secondSelected = null;
+                    } else {
+                        hit.setSelected(true);
+                        if (model.firstSelected == null) model.firstSelected = hit;
+                        else if (model.secondSelected == null) model.secondSelected = hit;
+                    }
+                } else {
+                    if (!hit.isSelected()) {
+                        clearSelection();
+                        hit.setSelected(true);
+                        model.firstSelected = hit;
+                    }
+                }
+            }
+
             @Override
             public void mouseDragged(MouseEvent e) {
-                handleMouseDrag(e);
+                if (model.dragging == null) return;
+                Point p = e.getPoint();
+                Rectangle bounds = model.dragging.getBounds();
+                if (bounds == null) bounds = new Rectangle(0,0,40,40);
+
+                int halfWidth = bounds.width / 2;
+                int halfHeight = bounds.height / 2;
+                int offsetX = (model.dragOffset != null) ? model.dragOffset.x : 0;
+                int offsetY = (model.dragOffset != null) ? model.dragOffset.y : 0;
+
+                int nx = p.x - offsetX;
+                int ny = p.y - offsetY;
+
+                // Clamping to board boundaries
+                int minX = view.boardRect.x + halfWidth;
+                int maxX = view.boardRect.x + view.boardRect.width - halfWidth;
+                int minY = view.boardRect.y + halfHeight;
+                int maxY = view.boardRect.y + view.boardRect.height - halfHeight;
+
+                nx = Math.max(minX, Math.min(maxX, nx));
+                ny = Math.max(minY, Math.min(maxY, ny));
+
+                model.dragging.setPosition(nx, ny);
+                updateCircuit();
+                view.repaint();                  
             }
+
             @Override
             public void mouseReleased(MouseEvent e) {
+                Point p = e.getPoint();
                 if (model.dragging != null) {
-                    if (!view.boardRect.contains(e.getPoint())) {
+                    // Delete if dropped outside
+                    if (!view.boardRect.contains(p)) {
                         model.circuit.removeComponent(model.dragging);
+                        // Also re-enable bulb tool if we deleted a bulb
+                        if(model.dragging instanceof Bulb) {
+                             // view.toolboxView.setToolEnabled(Toolbox.Tool.BULB, true); // Uncomment if implemented
+                        }
                     }
                     model.dragging = null;
                     updateCircuit();
@@ -63,188 +205,6 @@ public class CircuitController {
         };
         view.addMouseListener(ma);
         view.addMouseMotionListener(ma);
-        
-        // Gọi update lần đầu để hiện số 0
-        updateCircuit();
-    }
- // --- PHẦN QUAN TRỌNG NHẤT: LOGIC TÍNH TOÁN VÀ HIỂN THỊ ---
-    private void updateCircuit() {
-        // 1. Lấy thông số nguồn từ Model (SỬA LỖI: Không tìm component nữa)
-        double vSource = model.circuit.getSourceVoltage();
-        double fSource = model.circuit.getSourceFrequency();
-
-        // 2. Tìm bóng đèn trên mạch
-        Bulb targetBulb = null;
-        for (Components c : model.circuit.getComponents()) {
-            if (c instanceof Bulb) {
-                targetBulb = (Bulb) c;
-                break;
-            }
-        }
-        
-        // 3. Cập nhật Label Dòng 1 (Main Stats) ngay lập tức
-        // Nếu chưa set nguồn thì báo lỗi ở dòng status
-        if (vSource <= 0) {
-            view.mainStatsLabel.setText("Source: NOT SET (0V) | Total I: 0.00A");
-            view.bulbStatusLabel.setText("Please click Power Source tool to set Voltage.");
-            view.bulbStatusLabel.setForeground(Color.RED);
-            return;
-        }
-
-        if (targetBulb == null) {
-            view.mainStatsLabel.setText(String.format("Source: %.0fV %.0fHz | Total I: 0.00A", vSource, fSource));
-            view.bulbStatusLabel.setText("Status: Missing Bulb on circuit!");
-            view.bulbStatusLabel.setForeground(Color.RED);
-            return;
-        }
-
-        // 4. Chuẩn bị giả lập
-        CompositeComponent root = model.circuit.getRoot();
-        if (root == null) {
-             // Mạch rỗng, chưa nối gì
-             view.mainStatsLabel.setText(String.format("Source: %.0fV | Total I: 0.00A", vSource));
-             view.bulbStatusLabel.setText("Status: Connect components to start.");
-             return;
-        }
-
-        // Tạo một nguồn ảo để ném vào bộ giả lập
-        PowerSource virtualSource = new PowerSource("Main", 0, 0, vSource, fSource);
-
-        // 5. GỌI CIRCUIT MANAGER (Class tính toán đã cung cấp trước đó)
-        CircuitManager.simulate(virtualSource, root, targetBulb, gameMode);
-
-        // 6. TÍNH TOÁN HIỂN THỊ CHI TIẾT
-        // Lấy kết quả từ bóng đèn sau khi mô phỏng
-        double iBulb = targetBulb.getCurrentFlow();
-        double vBulb = targetBulb.getVoltageDrop();
-        double pReal = iBulb * vBulb; // Công suất thực tế
-        double pRated = targetBulb.getPowerLimit();
-
-        // Tính tổng dòng mạch (Tùy theo mode)
-        double totalI;
-        if (gameMode == CircuitManager.ConnectionMode.SERIES_WITH_BULB) {
-            totalI = iBulb; // Nối tiếp thì dòng như nhau
-        } else {
-            // Song song: I_total = I_bulb + I_user_circuit
-            totalI = iBulb + root.getCurrentFlow();
-        }
-
-        // 7. CẬP NHẬT GIAO DIỆN THEO YÊU CẦU
-        
-        // Dòng 1: Source + Total I + V_Bulb
-        view.mainStatsLabel.setText(String.format("Source: %.0fV | Total I: %.2fA | V_Bulb: %.2fV", 
-                vSource, totalI, vBulb));
-
-        // Dòng 2: Trạng thái bóng đèn + Số liệu cụ thể
-        String stateText;
-        Color stateColor;
-        
-        if (pReal >= pRated * 1.5) {
-            stateText = "BLOWN (Cháy)";
-            stateColor = Color.RED;
-        } else if (pReal >= pRated * 0.8) { // Sáng tốt
-            stateText = "BRIGHT (Sáng mạnh)";
-            stateColor = new Color(0, 153, 0); // Xanh lá
-        } else if (pReal >= pRated * 0.4) { // Sáng yếu
-            stateText = "DIM (Sáng yếu)";
-            stateColor = new Color(204, 204, 0); // Vàng đất
-        } else {
-            stateText = "OFF (Chưa đủ áp)";
-            stateColor = Color.DARK_GRAY;
-        }
-        
-        // Chuỗi hiển thị: "Status: OFF (Real: 10W / Rated: 100W)"
-        view.bulbStatusLabel.setText(String.format("Bulb: %s (Real: %.1fW / Rated: %.0fW)", 
-                stateText, pReal, pRated));
-        view.bulbStatusLabel.setForeground(stateColor);
-
-        // Dòng 3: Selection (Giữ nguyên)
-        if (model.firstSelected != null) {
-            String txt = model.firstSelected.getId();
-            if (model.firstSelected instanceof Resistor) txt += String.format(" (%.0fΩ)", model.firstSelected.getResistance());
-            view.selectionLabel.setText("Selected: " + txt);
-        } else {
-            view.selectionLabel.setText("Selected: None");
-        }
-        
-        view.repaint();
-    }
-    
-    // --- CÁC HÀM HỖ TRỢ MOUSE (Rút gọn cho ngắn code hiển thị ở đây) ---
-    private void handleMousePress(MouseEvent e) {
-        Point p = e.getPoint();
-        Toolbox.Tool t = view.toolboxView.hitTool(p);
-        if (t != null) {
-            if (t == Toolbox.Tool.POWER_SOURCE) {
-                double[] vals = view.toolboxView.promptForPowerSource();
-                if (vals != null) {
-                    view.toolboxView.updatePowerSourceDisplay(vals[0], vals[1]);
-                    model.circuit.setPowerSupply(vals[0], vals[1]);
-                    updateCircuit(); // Cập nhật ngay khi nhập xong
-                }
-                return;
-            }
-            // Logic thêm linh kiện khác...
-            Components c = createComponent(t);
-            if(c != null) {
-                model.circuit.addComponent(c);
-                updateCircuit();
-                view.repaint();
-            }
-            return;
-        }
-        
-        Components hit = componentAt(p);
-        if (hit != null) {
-            handleSelection(hit, e.isControlDown());
-            model.dragging = hit;
-            model.dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
-        } else if (view.boardRect.contains(p)) {
-            clearSelection();
-        }
-        updateCircuit();
-        view.repaint();
-    }
-    
-    private Components createComponent(Toolbox.Tool t) {
-        // 1. Xử lý Resistor (Điện trở)
-        if (t == Toolbox.Tool.RESISTOR) {
-            Double v = view.toolboxView.promptForValue("Resistor", "Ohm");
-            return (v != null) ? Toolbox.create(t, 200, 200, v) : null;
-        }
-        
-        // 2. Xử lý Capacitor (Tụ điện) - ĐÃ BỔ SUNG
-        if (t == Toolbox.Tool.CAPACITOR) {
-            Double v = view.toolboxView.promptForValue("Capacitor", "F"); // Đơn vị Farad
-            return (v != null) ? Toolbox.create(t, 200, 200, v) : null;
-        }
-
-        // 3. Xử lý Inductor (Cuộn cảm) - ĐÃ BỔ SUNG
-        if (t == Toolbox.Tool.INDUCTOR) {
-            Double v = view.toolboxView.promptForValue("Inductor", "H"); // Đơn vị Henry
-            return (v != null) ? Toolbox.create(t, 200, 200, v) : null;
-        }
-
-        // 4. Xử lý Bulb (Bóng đèn)
-        if (t == Toolbox.Tool.BULB) {
-            return Toolbox.create(t, 200, 200);
-        }
-
-        return null;
-    }    private void handleMouseDrag(MouseEvent e) {
-        if (model.dragging != null) {
-            model.dragging.setPosition(e.getX() - model.dragOffset.x, e.getY() - model.dragOffset.y);
-            updateCircuit();
-            view.repaint();
-        }
-    }
-    private void handleSelection(Components hit, boolean ctrl) {
-        if(!ctrl) clearSelection();
-        hit.setSelected(!hit.isSelected());
-        if(hit.isSelected()) {
-            if(model.firstSelected == null) model.firstSelected = hit;
-            else model.secondSelected = hit;
-        }
     }
 
     private void undo() {
@@ -254,6 +214,12 @@ public class CircuitController {
         restoreState(memento);
         view.repaint();
     }
+
+    private void saveState() {
+        model.redoStack.clear();
+        model.undoStack.add(new CircuitMemento(model.circuit, model.wires));
+    }
+
     private void restoreState(CircuitMemento memento) {
         model.circuit.setComponents(memento.getComponents());
         model.wires.clear();
@@ -263,16 +229,165 @@ public class CircuitController {
 
     // --- CONNECT LOGIC ---
     private void connectSelected(CompositeComponent.Mode mode) {
-        // Logic connect cũ
-        if(model.firstSelected != null && model.secondSelected != null) {
-            model.saveState();
-            model.addWire(model.firstSelected, model.secondSelected, 
-                (mode == CompositeComponent.Mode.SERIES) ? Wire.Type.SERIES : Wire.Type.PARALLEL);
-            updateCircuit();
-            view.repaint();
+        if (model.firstSelected == null || model.secondSelected == null) {
+            view.instructionLabel.setText("Select two components first.");
+            return;
         }
-    }
+
+        Components c1 = model.firstSelected;
+        Components c2 = model.secondSelected;
+
+        boolean isTerm1 = (c1 instanceof BoardTerminal);
+        boolean isTerm2 = (c2 instanceof BoardTerminal);
+        boolean involveTerminal = isTerm1 || isTerm2;
+
+        if (involveTerminal) {
+            // FIX: Use 'mode' instead of 'type'
+        	if (mode == CompositeComponent.Mode.PARALLEL) {
+        	    view.instructionLabel.setText("Board terminals only support SERIES connections.");
+        	    return;
+        	}
+
+            if (isTerm1 && getConnectionCount(c1) >= 1) {
+                view.instructionLabel.setText("Terminal " + c1.getId() + " is already occupied.");
+                return;
+            }
+            if (isTerm2 && getConnectionCount(c2) >= 1) {
+                view.instructionLabel.setText("Terminal " + c2.getId() + " is already occupied.");
+                return;
+            }
+            
+            if (!isTerm1 && getConnectionCount(c1) >= 2) {
+                view.instructionLabel.setText("Component " + c1.getId() + " is full (max 2).");
+                return;
+            }
+            if (!isTerm2 && getConnectionCount(c2) >= 2) {
+                view.instructionLabel.setText("Component " + c2.getId() + " is full (max 2).");
+                return;
+            }
+
+        } else {
+            if (getConnectionCount(c1) >= 2) {
+                view.instructionLabel.setText("Component " + c1.getId() + " full.");
+                return;
+            }
+            if (getConnectionCount(c2) >= 2) {
+                view.instructionLabel.setText("Component " + c2.getId() + " full.");
+                return;
+            }
+        }
         
+        if (areConnected(c1, c2)) {
+            view.instructionLabel.setText("Already connected.");
+            return;
+        }
+        
+        saveState();
+        
+        // FIX: Convert Mode to Wire.Type locally
+        Wire.Type wireType = (mode == CompositeComponent.Mode.SERIES) ? Wire.Type.SERIES : Wire.Type.PARALLEL;
+        model.wires.add(new Wire(c1, c2, wireType));
+        
+        model.circuit.connect(c1, c2, mode);
+        
+        updateCircuit();
+        clearSelection();
+        view.repaint();
+        view.instructionLabel.setText("Connected successfully.");
+    }
+    
+    private int getConnectionCount(Components c) {
+        int count = 0;
+        for (Wire w : model.wires) {
+            if (w.getA() == c || w.getB() == c) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean areConnected(Components c1, Components c2) {
+        for (Wire w : model.wires) {
+            if ((w.getA() == c1 && w.getB() == c2) || 
+                (w.getA() == c2 && w.getB() == c1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void updateCircuit() {
+        // 1. Tìm các thành phần cốt lõi trong mạch
+        PowerSource source = null;
+        Bulb targetBulb = null;
+        
+        for (Components c : model.circuit.getComponents()) {
+            if (c instanceof PowerSource) source = (PowerSource) c;
+            else if (c instanceof Bulb) targetBulb = (Bulb) c;
+        }
+
+        // Lấy mạch tổng hợp (User Circuit)
+        CompositeComponent root = model.circuit.getRoot();
+
+        // 2. Kiểm tra điều kiện tối thiểu để chạy mô phỏng
+        // Phải có Nguồn, Mạch người dùng không rỗng
+        if (source == null || root == null || model.circuit.getComponents().isEmpty()) {
+            view.circuitStatsLabel.setText("Circuit incomplete: Missing Source or Components");
+            return;
+        }
+
+        // Nếu chưa có bóng đèn nào được kéo vào, ta có thể tạo một bóng ảo để tính toán
+        // Hoặc đơn giản là return và báo người dùng cần thêm bóng đèn.
+        if (targetBulb == null) {
+            // Cách 1: Báo lỗi
+            view.circuitStatsLabel.setText("Please add a Bulb to simulate.");
+            // reset trạng thái mô phỏng cho các linh kiện khác về 0
+            root.setSimulationState(0, 0, 0);
+            view.repaint();
+            return;
+        }
+
+        // 3. GỌI LOGIC MỚI TỪ CIRCUIT MANAGER
+        // Hàm này sẽ tự động tính toán và setSimulationState cho toàn bộ linh kiện
+        CircuitManager.simulate(source, root, targetBulb, gameMode);
+
+        // 4. Cập nhật thông tin lên giao diện (Label Stats)
+        double totalZ = root.getImpedance(source.getFrequency());
+        double totalI = source.getVoltage() / (totalZ + (gameMode == CircuitManager.ConnectionMode.SERIES_WITH_BULB ? targetBulb.getResistance() : 0));
+        
+        if (gameMode == CircuitManager.ConnectionMode.PARALLEL_WITH_BULB) {
+            // Công thức dòng điện song song phức tạp hơn chút, lấy số liệu thực tế từ Bulb và Root
+            totalI = targetBulb.getCurrentFlow() + root.getCurrentFlow();
+        }
+
+        view.circuitStatsLabel.setText(String.format("Source: %.1fV | Mode: %s | I_Total: %.2fA",
+                source.getVoltage(), 
+                (gameMode == CircuitManager.ConnectionMode.SERIES_WITH_BULB ? "Series Bulb" : "Parallel Bulb"),
+                totalI));
+
+        // 5. Cập nhật thông tin chi tiết khi click vào linh kiện
+        if (model.firstSelected != null) {
+            view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, source.getFrequency()));
+        } else {
+            view.componentValuesLabel.setText("Selected: None");
+        }
+        
+        view.repaint();
+    }
+
+    // FIX: Added 'freq' parameter to show live Impedance
+    private String getComponentDetails(Components c, double freq) {
+        if (c instanceof Resistor) return String.format("R: %.2f Ω", c.getResistance());
+        if (c instanceof Capacitor) return String.format("C: %.2e F (Z: %.2f Ω)", ((Capacitor) c).getCapacitance(), c.getImpedance(freq));
+        if (c instanceof Inductor) return String.format("L: %.2e H (Z: %.2f Ω)", ((Inductor) c).getInductance(), c.getImpedance(freq));
+        if (c instanceof PowerSource) {
+            PowerSource b = (PowerSource) c;
+            return String.format("%.2f V / %.2f Hz", b.getVoltage(), b.getFrequency());
+        }
+        if (c instanceof Bulb) return String.format("Bulb (%.2f V)", c.getVoltageDrop());
+        return c.getId();
+    }
+
     private void clearSelection() {
         for (Components c : model.circuit.getComponents()) c.setSelected(false);
         model.firstSelected = null;
@@ -280,7 +395,11 @@ public class CircuitController {
     }
 
     private Components componentAt(Point p) {
-        for(Components c : model.circuit.getComponents()) if(c.contains(p)) return c;
+        List<Components> components = model.circuit.getComponents();
+        for (int i = components.size() - 1; i >= 0; i--) {
+            Components c = components.get(i);
+            if (c.contains(p)) return c;
+        }
         return null;
     }
 }
