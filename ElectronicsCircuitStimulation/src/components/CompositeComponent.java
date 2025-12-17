@@ -7,6 +7,9 @@ import java.util.List;
 public class CompositeComponent extends Components {
     private List<Components> children = new ArrayList<>();
     private Mode mode = Mode.SERIES;
+    
+    private Point leftTerm = new Point(0,0);
+    private Point rightTerm = new Point(0,0);
 
     public enum Mode {
         SERIES, PARALLEL
@@ -16,7 +19,6 @@ public class CompositeComponent extends Components {
         super(id, x, y);
     }
     
-    // Added helper constructor to match your usage
     public CompositeComponent(String id, int x, int y, Mode mode, List<Components> parts) {
         super(id, x, y);
         this.mode = mode;
@@ -25,130 +27,180 @@ public class CompositeComponent extends Components {
         this.height = 60;
     }
 
-    public void add(Components component) {
-        children.add(component);
-    }
-    
-    public List<Components> getChildren() {
-        return children;
-    }
+    public void add(Components component) { children.add(component); }
+    public List<Components> getChildren() { return children; }
+    public void setMode(Mode mode) { this.mode = mode; }
+    public Mode getMode() { return mode; }
 
-    public void setMode(Mode mode) {
-        this.mode = mode;
-    }
-    
-    public Mode getMode() {
-        return mode;
+    @Override
+    public void setPosition(int newX, int newY) {
+        int dx = newX - this.x;
+        int dy = newY - this.y;
+        super.setPosition(newX, newY);
+        
+        for (Components c : children) {
+            Point p = c.getPosition();
+            c.setPosition(p.x + dx, p.y + dy);
+        }
     }
 
     @Override
-    public double getImpedance(double frequency) {
-        if (children.isEmpty()) return Double.POSITIVE_INFINITY; //open circuit
+    public Point getConnectorPoint(Components other) {
+        if (mode == Mode.PARALLEL) {
+            if (other != null && other.getPosition().x < this.x) return leftTerm;
+            else return rightTerm;
+        }
+        
+        // For SERIES, snap to the child closest to the external component
+        if (children.isEmpty()) return new Point(x,y);
+        
+        Point target = (other != null) ? other.getPosition() : new Point(x,y);
+        Components best = children.get(0);
+        double minDst = Double.MAX_VALUE;
+        
+        for(Components c : children) {
+            double d = c.getPosition().distance(target);
+            if(d < minDst) { minDst = d; best = c; }
+        }
+        return best.getPosition();
+    }
+
+    @Override
+    public double getImpedance(double f) {
+        if (children.isEmpty()) return Double.POSITIVE_INFINITY;
 
         if (mode == Mode.SERIES) {
             double totalZ = 0.0;
-            for (Components c : children) {
-                totalZ += c.getImpedance(frequency);
-            }
+            for (Components c : children) totalZ += c.getImpedance(f);
             return totalZ;
         } else {
             double inverseZ = 0.0;
-            boolean hasShort = false; // check for short circuit
-
+            boolean hasShort = false;
             for (Components c : children) {
-                double z = c.getImpedance(frequency);
-                if (Math.abs(z) < 1e-9) { hasShort = true; break; } // short circuit (no R) then flow through that path
-                if (!Double.isInfinite(z)) inverseZ += 1.0 / z; //parallel formula
+                double z = c.getImpedance(f);
+                if (Math.abs(z) < 1e-9) { hasShort = true; break; }
+                if (!Double.isInfinite(z)) inverseZ += 1.0 / z;
             }
-
             if (hasShort) return 0.0; 
-            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY; //condition 
-            return 1.0 / inverseZ; //reverse back 
+            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY; 
+            return 1.0 / inverseZ; 
         }
     }
 
     @Override
-    public void setSimulationState(double voltage, double current, double frequency) {
-        super.setSimulationState(voltage, current, frequency); // Store state
-
+    public void setSimulationState(double v, double i, double f) {
+        super.setSimulationState(v, i, f);
         if (children.isEmpty()) return;
 
         if (mode == Mode.SERIES) {
-            handleSeriesDistribution(voltage, current, frequency);
+            for(Components c : children) {
+                double z = c.getImpedance(f);
+                c.setSimulationState(i * z, i, f);
+            }
         } else {
-            handleParallelDistribution(voltage, frequency);
-        }
-    }
-    
-    private void handleSeriesDistribution(double totalVoltage, double totalCurrent, double frequency) {
-        int openComponents = 0;
-        
-        for(Components c : children) {
-            if(Double.isInfinite(c.getImpedance(frequency))) openComponents++;
-        }
-
-        for (Components c : children) {
-            double z = c.getImpedance(frequency);
-            double vDrop;
-
-            if (openComponents > 0) {
-                // If open circuit, voltage appears across the open gap
-                if (Double.isInfinite(z)) {
-                    vDrop = totalVoltage / openComponents; 
-                } else {
-                    vDrop = 0.0; 
-                }
-            } else {
-                vDrop = totalCurrent * z;
+            for (Components c : children) {
+                double z = c.getImpedance(f);
+                double branchI = (z == 0 || Double.isInfinite(z)) ? 0 : v/z;
+                c.setSimulationState(v, branchI, f);
             }
-            c.setSimulationState(vDrop, totalCurrent, frequency); //loop like a tree traversal 
-        }
-    }
-
-    private void handleParallelDistribution(double totalVoltage, double frequency) {
-        for (Components c : children) {
-            double z = c.getImpedance(frequency);
-            double iBranch;
-            if (Math.abs(z) < 1e-9) {
-                // If shorted, it conceptually takes max current, but for sim safety:
-                iBranch = (this.getImpedance(frequency) < 1e-9) ? this.currentFlow : 0; //calculate I 
-            } else if (Double.isInfinite(z)) {
-                iBranch = 0.0;
-            } else {
-                iBranch = totalVoltage / z;
-            }
-            c.setSimulationState(totalVoltage, iBranch, frequency);
         }
     }
 
     @Override
-    public double getResistance() {
-        return getImpedance(0);
-    }
+    public double getResistance() { return getImpedance(0); }
 
     @Override
     public void draw(Graphics2D g2) {
-        int left = x - width/2;
-        int top = y - height/2;
-        // draw a box representing the composite
-        g2.setColor(new Color(220, 220, 250));
-        g2.fillRect(left, top, width, height);
-        g2.setColor(Color.BLACK);
-        g2.drawRect(left, top, width, height);
+        if (children.isEmpty()) return;
 
-        g2.setFont(g2.getFont().deriveFont(12f));
-        String label = mode == Mode.SERIES ? "Series" : "Parallel";
-        FontMetrics fm = g2.getFontMetrics();
-        int lx = x - fm.stringWidth(label)/2;
-        int ly = y + fm.getAscent()/2;
-        g2.drawString(label, lx, ly);
+        if (mode == Mode.SERIES) {
+            // Series Box
+            g2.drawRect(x-20, y-20, 40, 40);
+            g2.drawString("Series", x-15, y+5);
+        } else {
+            // --- PARALLEL RAIL DRAWING ---
+            
+            // 1. Calculate Bounds
+            int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+            int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
 
+            for (Components c : children) {
+                Rectangle b = c.getBounds();
+                if (b.x < minX) minX = b.x;
+                if (b.x + b.width > maxX) maxX = b.x + b.width;
+                if (b.y < minY) minY = b.y;
+                if (b.y + b.height > maxY) maxY = b.y + b.height;
+            }
+
+            int padding = 30;
+            int railLeft = minX - padding;
+            int railRight = maxX + padding;
+            
+            // Find Top/Bottom Y levels
+            int yTop = minY + (children.get(0).height / 2);
+            int yBot = maxY - (children.get(0).height / 2);
+            if (children.size() >= 2) {
+                 yTop = Math.min(children.get(0).getPosition().y, children.get(1).getPosition().y);
+                 yBot = Math.max(children.get(0).getPosition().y, children.get(1).getPosition().y);
+            }
+
+            // Update Group Center
+            this.x = (railLeft + railRight) / 2;
+            this.y = (yTop + yBot) / 2;
+            this.width = railRight - railLeft;
+            this.height = yBot - yTop;
+
+
+            Stroke originalStroke = g2.getStroke();
+            g2.setStroke(new BasicStroke(1f)); 
+            for (Components c : children) {
+                // Ensure child doesn't think it's selected individually
+                boolean wasSelected = c.selected;
+                c.selected = false; // Temporarily disable child selection visuals
+                c.draw(g2); 
+                c.selected = wasSelected; // Restore state
+            }
+            
+            // 3. Draw Rails (Switch to Bold for the wires)
+            g2.setColor(Color.BLACK);
+            g2.setStroke(new BasicStroke(2f)); 
+
+            for (Components c : children) {
+                int cy = c.getPosition().y;
+                Rectangle b = c.getBounds();
+                
+                // Left Rail -> Component
+                g2.drawLine(railLeft, cy, b.x, cy);
+                // Component -> Right Rail
+                g2.drawLine(b.x + b.width, cy, railRight, cy);
+            }
+
+            // Vertical Connectors
+            g2.drawLine(railLeft, yTop, railLeft, yBot);
+            g2.drawLine(railRight, yTop, railRight, yBot);
+
+            // Connectable Dots
+            int midY = (yTop + yBot) / 2;
+            int dotSize = 10;
+            leftTerm = new Point(railLeft, midY);
+            rightTerm = new Point(railRight, midY);
+
+            g2.fillOval(leftTerm.x - dotSize/2, leftTerm.y - dotSize/2, dotSize, dotSize);
+            g2.fillOval(rightTerm.x - dotSize/2, rightTerm.y - dotSize/2, dotSize, dotSize);
+            
+            // Restore original stroke
+            g2.setStroke(originalStroke);
+        }
+        
         if (selected) {
             g2.setColor(Color.BLACK);
-            g2.setStroke(new BasicStroke(2));
-            Rectangle bounds = getBounds();
-            g2.draw(new Rectangle(bounds.x - 2, bounds.y - 2, bounds.width + 4, bounds.height + 4));
-            g2.setStroke(new BasicStroke(1));
+            g2.setStroke(new BasicStroke(2f)); // Standard bold selection
+            
+            int selPadding = 8;
+            g2.drawRect(x - width/2 - selPadding, y - height/2 - selPadding, 
+                        width + (selPadding*2), height + (selPadding*2));
+                        
+            g2.setStroke(new BasicStroke(1f)); // Reset
         }
     }
 

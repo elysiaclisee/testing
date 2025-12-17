@@ -13,6 +13,21 @@ public class Wire implements Cloneable {
         this.type = type;
     }
 
+    public void draw(Graphics2D g2) {
+        // 1. Get exact dot positions
+        Point p1 = getConnectorPointSafe(a, b);
+        Point p2 = getConnectorPointSafe(b, a);
+        
+        g2.setColor(Color.BLACK);
+        g2.setStroke(new BasicStroke(2f));
+        g2.drawLine(p1.x, p1.y, p2.x, p2.y);
+    }
+
+    private Point getConnectorPointSafe(Components source, Components target) {
+        Point p = source.getConnectorPoint(target);
+        return (p != null) ? p : source.getPosition();
+    }
+
     public Components getA() { return a; }
     public Components getB() { return b; }
     public Type getType() { return type; }
@@ -22,58 +37,7 @@ public class Wire implements Cloneable {
         try {
             return (Wire) super.clone();
         } catch (CloneNotSupportedException e) {
-            throw new AssertionError(); // Should not happen
+            throw new AssertionError();
         }
-    }
-
-    public void remap(java.util.Map<String, Components> componentMap) {
-        a = componentMap.get(a.getId());
-        b = componentMap.get(b.getId());
-    }
-
-    public void draw(Graphics2D g2) {
-        Point pa = a.getPosition();
-        Point pb = b.getPosition();
-        g2.setColor(Color.DARK_GRAY);
-        g2.setStroke(new BasicStroke(3f));
-        if (type == Type.SERIES) {
-            // simple straight line for series
-            g2.drawLine(pa.x, pa.y, pb.x, pb.y);
-            int mx = (pa.x + pb.x) / 2;
-            int my = (pa.y + pb.y) / 2;
-            g2.setColor(Color.BLACK);
-            g2.setFont(g2.getFont().deriveFont(12f));
-            g2.drawString("S", mx + 6, my - 6);
-            return;
-        }
-
-        // PARALLEL: draw a rectangular loop that passes above/below the two components
-        int padding = 30;
-        int left = Math.min(pa.x, pb.x) - padding;
-        int right = Math.max(pa.x, pb.x) + padding;
-        int top = Math.min(pa.y, pb.y) - padding;
-        int bottom = Math.max(pa.y, pb.y) + padding;
-
-        // draw rectangle loop
-        g2.setColor(Color.DARK_GRAY);
-        g2.setStroke(new BasicStroke(3f));
-        g2.drawRect(left, top, right - left, bottom - top);
-
-        // draw short connectors from component centers to rectangle sides
-        // connector for a
-        int axConnectorX = (pa.x < (left + right)/2) ? left : right;
-        int ay = pa.y;
-        g2.drawLine(pa.x, pa.y, axConnectorX, ay);
-        // connector for b
-        int bxConnectorX = (pb.x < (left + right)/2) ? left : right;
-        int by = pb.y;
-        g2.drawLine(pb.x, pb.y, bxConnectorX, by);
-
-        // label P near top midpoint
-        int mx = (left + right) / 2;
-        int my = top;
-        g2.setColor(Color.BLACK);
-        g2.setFont(g2.getFont().deriveFont(12f));
-        g2.drawString("P", mx + 6, my - 6);
     }
 }

@@ -12,6 +12,7 @@ import java.util.List;
 public class CircuitController {
     private final CircuitModel model;
     private final CircuitPanel view;
+    private Components wireSource = null;
 
     public CircuitController(CircuitModel model, CircuitPanel view) {
         this.model = model;
@@ -69,10 +70,38 @@ public class CircuitController {
                             inputs = new double[]{l};
                             break;
                         case BULB:
-                        	for (Components comp : model.circuit.getComponents()) {
-                                if (comp instanceof Bulb) return; // Limit 1 bulb
-                        	}
-                            break;
+                        	double bVolts = 220.0;
+                            double bWatts = 50.0;
+                            double bRes = 968.0; // R = V^2 / P = 968 Ohms
+                            
+                            // 2. Get Current Board State
+                            double srcVolts = model.circuit.getSourceVoltage();
+                            double srcFreq = model.circuit.getSourceFrequency();
+                            CompositeComponent root = model.circuit.getRoot();
+                            
+                            // Calculate Board Impedance (Z_board)
+                            double zBoard = (root != null) ? root.getImpedance(srcFreq) : Double.POSITIVE_INFINITY;
+                            if (model.circuit.getComponents().isEmpty()) zBoard = Double.POSITIVE_INFINITY;
+
+                            // --- SCENARIO A: SERIES CONNECTION ---
+                            // Circuit: Source -> Bulb -> Board -> Ground
+                            // Math: Z_total = R_bulb + Z_board
+                            String seriesResult;
+                            
+                            if (Double.isInfinite(zBoard)) {
+                                // If board is open (broken), series circuit is broken.
+                                seriesResult = "OFF (Open Circuit)";
+                            } else {
+                                double zTotalSeries = bRes + zBoard; 
+                                double iSeries = srcVolts / zTotalSeries;
+                                double pSeries = iSeries * iSeries * bRes;
+                            }
+
+                            // --- SCENARIO B: PARALLEL CONNECTION ---
+                            // Circuit: Source -> Bulb (Board is separate)
+                            // Math: Bulb gets full Source Voltage
+                            double pParallel = (srcVolts * srcVolts) / bRes;
+                            return;
                     }
                     saveState();
                     
@@ -201,6 +230,28 @@ public class CircuitController {
         view.repaint();
     }
 
+    private boolean isSpecificSideOccupied(Components host, Components target) {
+        // 1. Calculate which exact point (dot) would be used for this connection
+        Point neededPort = host.getConnectorPoint(target);
+
+        // 2. Scan all existing wires
+        for (Wire w : model.wires) {
+            // We only care about wires attached to 'host'
+            if (w.getA() == host || w.getB() == host) {
+                
+                // Find the component at the OTHER end of this existing wire
+                Components existingPartner = (w.getA() == host) ? w.getB() : w.getA();
+                
+                // Ask: "Which port is this existing wire using?"
+                Point usedPort = host.getConnectorPoint(existingPartner);
+                
+                if (neededPort.distance(usedPort) < 5.0) {
+                    return true; 
+                }
+            }
+        }
+        return false; // Port is free
+    }
     private void saveState() {
         model.redoStack.clear();
         model.undoStack.add(new CircuitMemento(model.circuit, model.wires));
@@ -213,7 +264,6 @@ public class CircuitController {
         updateCircuit();
     }
 
-    // --- CONNECT LOGIC ---
     private void connectSelected(CompositeComponent.Mode mode) {
         if (model.firstSelected == null || model.secondSelected == null) {
             view.instructionLabel.setText("Select two components first.");
@@ -263,6 +313,13 @@ public class CircuitController {
             }
         }
         
+        if (mode == CompositeComponent.Mode.PARALLEL) {
+            if (getConnectionCount(c1) > 0 || getConnectionCount(c2) > 0) {
+                view.instructionLabel.setText("Cannot group: Components are already connected in series.");
+                return;
+            }
+        }
+        
         if (areConnected(c1, c2)) {
             view.instructionLabel.setText("Already connected.");
             return;
@@ -270,16 +327,12 @@ public class CircuitController {
         
         saveState();
         
-        // FIX: Convert Mode to Wire.Type locally
-        Wire.Type wireType = (mode == CompositeComponent.Mode.SERIES) ? Wire.Type.SERIES : Wire.Type.PARALLEL;
-        model.wires.add(new Wire(c1, c2, wireType));
-        
-        model.circuit.connect(c1, c2, mode);
-        
-        updateCircuit();
-        clearSelection();
-        view.repaint();
-        view.instructionLabel.setText("Connected successfully.");
+        if (mode == CompositeComponent.Mode.PARALLEL) {
+            model.circuit.connect(c1, c2, mode);
+        } else {
+            model.wires.add(new Wire(c1, c2, Wire.Type.SERIES));
+            model.circuit.connect(c1, c2, mode);
+        }
     }
     
     private int getConnectionCount(Components c) {
@@ -395,5 +448,15 @@ public class CircuitController {
             if (c.contains(p)) return c;
         }
         return null;
+    }
+    
+    private String getBulbStateText(double power, double limit) {
+        if (power > limit * 1.5) { // 150% threshold for blowing out
+            return String.format("BLOWN OUT! (%.1f W)", power);
+        } else if (power > limit * 0.2) { // 20% threshold for light
+            return String.format("LIGHTED (%.1f W)", power);
+        } else {
+            return String.format("OFF (%.2f W)", power);
+        }
     }
 }

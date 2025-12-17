@@ -18,7 +18,6 @@ public class Inductor extends Components {
     @Override
     public void draw(Graphics2D g2) {
         draw(g2, new Color(200, 200, 255)); 
-
         String label = "L: " + formatDouble(inductance) + "H";
         g2.setFont(g2.getFont().deriveFont(12f));
         drawCenteredString(g2, label, new Rectangle(x - width / 2, y - height / 2, width, height));

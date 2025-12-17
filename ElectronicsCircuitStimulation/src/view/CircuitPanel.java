@@ -131,12 +131,13 @@ Welcome to our Circuit Simulator!
 This application allows you to create and simulate simple electronic circuits using components like resistors, capacitors, inductors, bulbs, and a power source.
  
 Before you start, here are some key notes you must read:
-- Default power source type is AC (Alternating Current). This is why only one power source is allowed in the circuit.
+- Default power source type is AC (Alternating Current). This is why only one power source is allowed in the circuit, and 0Hz frequency is not accepted.
 Design your circuit freely, then connect 2 components on 2 end each to a point on 2 opposite edges. That's how we connect to power source.
 This ensures our circuit is closed.  	                      
 - Dragging components to borders of the circuit board may make them inaccessible. Please keep components within the visible area. 
 - If you want to connect 2 components, select the first one, then hit CTRL and select the second one. Then click connection buttons to connect them.
-- For simplicity, right now only 1 bulb is supported. 
+- For simplicity, right now only 1 bulb is supported, and there are 2 options: series or parallel connection to the whole circuit on board.
+Each connection option will have a state update for you to check, along with displayed values.
 
 Thank you for understanding these limitations as we work to improve the simulator in future versions!
                 """;

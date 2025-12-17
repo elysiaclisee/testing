@@ -3,7 +3,7 @@ package controller;
 import components.*;
 
 public class Toolbox {
-    public enum Tool { POWER_SOURCE, RESISTOR, CAPACITOR, BULB, INDUCTOR }
+    public enum Tool { POWER_SOURCE, BULB, RESISTOR, CAPACITOR, INDUCTOR }
 
     private static int counter = 1;
 
