@@ -1,0 +1,14 @@
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\module-info.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\Bulb.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\Capacitor.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\Components.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\CompositeComponent.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\Connections.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\ParallelConnections.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\Resistor.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\SeriesConnection.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\components\Wire.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\controller\Toolbox.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\main\Main.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\view\Toolbox.java
+c:\Users\Admin\eclipse-workspace1\ElectronicsCircuitStimulation\src\view\ToolboxView.java

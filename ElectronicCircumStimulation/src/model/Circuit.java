@@ -5,6 +5,7 @@ import components.Capacitor;
 import components.Components;
 import components.CompositeComponent;
 
+import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,28 +37,26 @@ public class Circuit {
         return root;
     }
 
-    public void connect(Components c1, Components c2, CompositeComponent.Mode mode) {
-        // For simplicity, we'll just rebuild the root composite component
-        // with the new connection. A more sophisticated implementation would
-        // merge the new connection into the existing composite structure.
-        if (root == null) {
-            root = new CompositeComponent("C1", 0, 0);
-            root.add(c1);
-            root.add(c2);
-            root.setMode(mode);
-        } else {
-            CompositeComponent newRoot = new CompositeComponent("C_new", 0, 0);
-            newRoot.add(root);
-            // Find the component to connect to that is not already in the root
-            if (!root.getChildren().contains(c1)) {
-                newRoot.add(c1);
-            } else if (!root.getChildren().contains(c2)) {
-                newRoot.add(c2);
-            }
-            newRoot.setMode(mode);
-            root = newRoot;
-        }
+    public void connect(Components a, Components b, CompositeComponent.Mode mode) {
+        if (a == null || b == null || a == b) return;
+
+        // a và b phải là TOP-LEVEL rồi (nhờ selectableAt)
+        CompositeComponent group = new CompositeComponent("G_" + System.nanoTime(), 0, 0);
+        group.setMode(mode);
+        group.add(a);
+        group.add(b);
+
+        // remove top-level a,b
+        components.remove(a);
+        components.remove(b);
+
+        // add new group as top-level
+        components.add(group);
+
+        // root = group nếu chỉ muốn root là cụm lớn nhất
+        root = group;
     }
+
 
     private void rebuildCircuit() {
         if (components.size() < 2) {
@@ -106,4 +105,26 @@ public class Circuit {
             }
         }
     }
+
+    public Components selectableAt(Point p) {
+        // duyệt từ trên xuống dưới để ưu tiên component vẽ sau
+        for (int i = components.size() - 1; i >= 0; i--) {
+            Components top = components.get(i);
+            if (hitDeep(top, p)) {
+                return top; // luôn trả về TOP-LEVEL
+            }
+        }
+        return null;
+    }
+
+    private boolean hitDeep(Components c, Point p) {
+        if (c.contains(p)) return true;
+        if (c instanceof CompositeComponent comp) {
+            for (Components child : comp.getChildren()) {
+                if (hitDeep(child, p)) return true;
+            }
+        }
+        return false;
+    }
+
 }

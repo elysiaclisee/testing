@@ -40,4 +40,9 @@ public class Resistor extends Components {
 	public Rectangle getBounds() {
 	    return new Rectangle(x - width / 2, y - height / 2, width, height);
 	}
+	@Override
+	public double getImpedance(double frequency) {
+	    return resistance; // R không phụ thuộc tần số
+	}
+
 }
