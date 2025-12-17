@@ -3,7 +3,7 @@ package controller;
 import components.*;
 
 public class Toolbox {
-    public enum Tool { POWER_SOURCE, RESISTOR, CAPACITOR, BULB, INDUCTOR }
+    public enum Tool { POWER_SOURCE, BULB, RESISTOR, CAPACITOR, INDUCTOR }
 
     private static int counter = 1;
 
@@ -26,6 +26,7 @@ public class Toolbox {
                 return new Inductor(id, x, y, val1);
             case BULB:
                 return new Bulb(id, x, y);
+                
             default:
                 return null;
         }

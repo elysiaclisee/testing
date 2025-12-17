@@ -15,8 +15,7 @@ public class ToolboxView {
 
     private final Rectangle[] slots = new Rectangle[5];
 
-    // --- 1. Create "Dummy" Components for display purposes ---
-    private final PowerSource sampleSource;
+    private PowerSource sampleSource;
     private final Resistor sampleResistor;
     private final Bulb sampleBulb;
     private final Capacitor sampleCapacitor;
@@ -35,10 +34,10 @@ public class ToolboxView {
             slots[i] = new Rectangle(sx, sy, slotWidth, slotHeight);
         }
 
-        // --- 2. Initialize the dummies (0,0 is temporary) ---
+        // Initialize Dummies
         sampleSource = new PowerSource("Display", 0, 0, 0.0, 0.0);
-        sampleResistor = new Resistor("Display", 0, 0, 0);
-        sampleBulb = new Bulb("Display", 0, 0);
+        sampleResistor = new Resistor("Display", 0, 0, 0); 
+        sampleBulb = new Bulb("Display", 0, 0, 220.0, 50.0);
         sampleCapacitor = new Capacitor("Display", 0, 0, 0);
         sampleInductor = new Inductor("Display", 0, 0, 0);
         
@@ -48,7 +47,12 @@ public class ToolboxView {
         sampleCapacitor.setSelected(false);
         sampleInductor.setSelected(false);
     }
-
+    
+    public void updatePowerSourceDisplay(double voltage, double frequency) {
+        this.sampleSource = new PowerSource("Display", 0, 0, voltage, frequency);
+        this.sampleSource.setSelected(false);
+    }
+    
     public void draw(Graphics2D g2) {
         g2.setColor(new Color(230, 230, 230));
         g2.fillRect(X, Y, WIDTH, HEIGHT);
@@ -59,31 +63,27 @@ public class ToolboxView {
         g2.setFont(new Font("SansSerif", Font.BOLD, 14));
         g2.drawString("Toolbox", X + 10, Y + 20);
 
-        // --- 3. Draw using the Component's OWN draw method ---
+        // --- DRAW SLOTS (Swapped Bulb and Resistor positions) ---
+        // Slot 0: Power Source
         drawComponentInSlot(g2, slots[0], sampleSource, "Power Source");
-        drawComponentInSlot(g2, slots[1], sampleResistor, "Resistor");
-        drawComponentInSlot(g2, slots[2], sampleBulb, "Bulb");
+        drawComponentInSlot(g2, slots[1], sampleBulb, "Bulb");
+        drawComponentInSlot(g2, slots[2], sampleResistor, "Resistor");
         drawComponentInSlot(g2, slots[3], sampleCapacitor, "Capacitor");
         drawComponentInSlot(g2, slots[4], sampleInductor, "Inductor");
     }
 
-    // Helper to position and draw the dummy component
     private void drawComponentInSlot(Graphics2D g2, Rectangle r, Components c, String label) {
-        // Draw Slot White Box
         g2.setColor(Color.WHITE);
         g2.fill(r);
         g2.setColor(Color.BLACK);
         g2.draw(r);
 
-        // Calculate Center
         int cx = r.x + r.width / 2;
         int cy = r.y + r.height / 2 - 6;
 
-        // Move component to this slot and Draw it
         c.setPosition(cx, cy);
         c.draw(g2); 
 
-        // Draw Label
         g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
         Rectangle2D bounds = g2.getFontMetrics().getStringBounds(label, g2);
         int lx = r.x + (r.width - (int) bounds.getWidth()) / 2;
@@ -97,8 +97,8 @@ public class ToolboxView {
             if (slots[i].contains(p)) {
                 switch (i) {
                     case 0 -> { return Tool.POWER_SOURCE; }
-                    case 1 -> { return Tool.RESISTOR; }
-                    case 2 -> { return Tool.BULB; }
+                    case 1 -> { return Tool.BULB; }     // Swapped: Index 1 is now Bulb
+                    case 2 -> { return Tool.RESISTOR; } // Swapped: Index 2 is now Resistor
                     case 3 -> { return Tool.CAPACITOR; }
                     case 4 -> { return Tool.INDUCTOR; }
                 }
@@ -106,24 +106,19 @@ public class ToolboxView {
         }
         return null;
     }
+    
     public Double promptForValue(String componentName, String unit) {
         String prompt = "Enter value for " + componentName + " (" + unit + "):";
         String input = JOptionPane.showInputDialog(null, prompt, "Enter " + componentName, JOptionPane.PLAIN_MESSAGE);
-        
         if (input != null && !input.trim().isEmpty()) {
-            try {
-                return Double.parseDouble(input.trim());
-            } catch (NumberFormatException ex) {
-                return 0.0;
-            }
+            try { return Double.parseDouble(input.trim()); } catch (NumberFormatException ex) { return 0.0; }
         }
-        return null; // User cancelled
+        return null; 
     }
 
     public double[] promptForPowerSource() {
-        JTextField voltageField = new JTextField("5.0", 5);
-        JTextField frequencyField = new JTextField("0", 5);
-
+        JTextField voltageField = new JTextField("220.0", 5);
+        JTextField frequencyField = new JTextField("50.0", 5);
         JPanel panel = new JPanel();
         panel.add(new JLabel("Voltage (V):"));
         panel.add(voltageField);
@@ -131,16 +126,28 @@ public class ToolboxView {
         panel.add(new JLabel("Frequency (Hz):"));
         panel.add(frequencyField);
 
-        int result = JOptionPane.showConfirmDialog(null, panel, 
-                "Enter Power Source Values", JOptionPane.OK_CANCEL_OPTION);
-
+        int result = JOptionPane.showConfirmDialog(null, panel, "Enter power source values:", JOptionPane.OK_CANCEL_OPTION);
+        
         if (result == JOptionPane.OK_OPTION) {
-            double v = 5.0;
-            double f = 0.0;
-            try { v = Double.parseDouble(voltageField.getText()); } catch (Exception e) {}
-            try { f = Double.parseDouble(frequencyField.getText()); } catch (Exception e) {}
+            double v = 220.0;
+            double f = 100.0;
+
+            try {
+                double inputV = Double.parseDouble(voltageField.getText());
+                if (inputV != 0) {
+                    v = inputV;
+                }
+            } catch (Exception e) {}
+
+            try {
+                double inputF = Double.parseDouble(frequencyField.getText());
+                if (inputF != 0) {
+                    f = inputF;
+                }
+            } catch (Exception e) {}
+
             return new double[]{v, f};
         }
-        return null; // User cancelled
+        return null; 
     }
 }

@@ -10,7 +10,7 @@ public class Main {
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Electronics Circuit Simulation");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(1000, 700);
+            frame.setSize(1700, 700);
             frame.setLocationRelativeTo(null);
 
             // 1. Initialize Model

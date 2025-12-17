@@ -4,6 +4,7 @@ import model.CircuitMemento;
 import model.CircuitModel;
 import view.CircuitPanel;
 import components.*;
+import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.List;
@@ -11,24 +12,12 @@ import java.util.List;
 public class CircuitController {
     private final CircuitModel model;
     private final CircuitPanel view;
-    private CircuitManager.ConnectionMode gameMode = CircuitManager.ConnectionMode.SERIES_WITH_BULB;
-    
+    private Components wireSource = null;
+
     public CircuitController(CircuitModel model, CircuitPanel view) {
         this.model = model;
         this.view = view;
         
-     // THÊM: Listener cho việc đổi chế độ Game
-        ActionListener modeListener = e -> {
-            if (view.rbSeriesBulb.isSelected()) {
-                this.gameMode = CircuitManager.ConnectionMode.SERIES_WITH_BULB;
-            } else {
-                this.gameMode = CircuitManager.ConnectionMode.PARALLEL_WITH_BULB;
-            }
-            updateCircuit(); 
-        };
-
-        view.rbSeriesBulb.addActionListener(modeListener);
-        view.rbParallelBulb.addActionListener(modeListener);        
         // Setup Terminals
         int midY = view.boardRect.y + view.boardRect.height / 2;
         model.termLeft.setPosition(view.boardRect.x, midY);
@@ -81,7 +70,38 @@ public class CircuitController {
                             inputs = new double[]{l};
                             break;
                         case BULB:
-							break;
+                        	double bVolts = 220.0;
+                            double bWatts = 50.0;
+                            double bRes = 968.0; // R = V^2 / P = 968 Ohms
+                            
+                            // 2. Get Current Board State
+                            double srcVolts = model.circuit.getSourceVoltage();
+                            double srcFreq = model.circuit.getSourceFrequency();
+                            CompositeComponent root = model.circuit.getRoot();
+                            
+                            // Calculate Board Impedance (Z_board)
+                            double zBoard = (root != null) ? root.getImpedance(srcFreq) : Double.POSITIVE_INFINITY;
+                            if (model.circuit.getComponents().isEmpty()) zBoard = Double.POSITIVE_INFINITY;
+
+                            // --- SCENARIO A: SERIES CONNECTION ---
+                            // Circuit: Source -> Bulb -> Board -> Ground
+                            // Math: Z_total = R_bulb + Z_board
+                            String seriesResult;
+                            
+                            if (Double.isInfinite(zBoard)) {
+                                // If board is open (broken), series circuit is broken.
+                                seriesResult = "OFF (Open Circuit)";
+                            } else {
+                                double zTotalSeries = bRes + zBoard; 
+                                double iSeries = srcVolts / zTotalSeries;
+                                double pSeries = iSeries * iSeries * bRes;
+                            }
+
+                            // --- SCENARIO B: PARALLEL CONNECTION ---
+                            // Circuit: Source -> Bulb (Board is separate)
+                            // Math: Bulb gets full Source Voltage
+                            double pParallel = (srcVolts * srcVolts) / bRes;
+                            return;
                     }
                     saveState();
                     
@@ -210,6 +230,28 @@ public class CircuitController {
         view.repaint();
     }
 
+    private boolean isSpecificSideOccupied(Components host, Components target) {
+        // 1. Calculate which exact point (dot) would be used for this connection
+        Point neededPort = host.getConnectorPoint(target);
+
+        // 2. Scan all existing wires
+        for (Wire w : model.wires) {
+            // We only care about wires attached to 'host'
+            if (w.getA() == host || w.getB() == host) {
+                
+                // Find the component at the OTHER end of this existing wire
+                Components existingPartner = (w.getA() == host) ? w.getB() : w.getA();
+                
+                // Ask: "Which port is this existing wire using?"
+                Point usedPort = host.getConnectorPoint(existingPartner);
+                
+                if (neededPort.distance(usedPort) < 5.0) {
+                    return true; 
+                }
+            }
+        }
+        return false; // Port is free
+    }
     private void saveState() {
         model.redoStack.clear();
         model.undoStack.add(new CircuitMemento(model.circuit, model.wires));
@@ -313,66 +355,66 @@ public class CircuitController {
         return false;
     }
 
+    // --- PHYSICS ENGINE & UI UPDATE ---
     private void updateCircuit() {
-        // 1. Get power supply settings from circuit model
-        double sourceVoltage = model.circuit.getSourceVoltage();
-        double sourceFrequency = model.circuit.getSourceFrequency();
+        double voltage = model.circuit.getSourceVoltage();
+        double freq = model.circuit.getSourceFrequency();
+        CompositeComponent root = model.circuit.getRoot();
+
+        // 1. If empty, just show source info
+        if (root == null || model.circuit.getComponents().isEmpty()) {
+            view.circuitStatsLabel.setText(String.format("Source: %.1fV %.1fHz (Empty)", voltage, freq));
+            return;
+        }
+
+        // 2. Step 1: Calculate Total Impedance (Bottom-Up)
+        double zTotal = root.getImpedance(freq);
+        double iTotal;
+
+        // 3. Calculate Total Current (Ohm's Law: I = V / Z)
+        if (Double.isInfinite(zTotal)) {
+            iTotal = 0.0; // Open circuit
+        } else if (Math.abs(zTotal) < 1e-9) {
+            iTotal = 0.0; // Short Circuit protection
+        } else {
+            iTotal = voltage / zTotal;
+        }
+
+        // 4. Step 2: Distribute Physics to Components (Top-Down)
+        root.setSimulationState(voltage, iTotal, freq);
         
-        // 2. Check if both terminals are connected
-        int leftConnections = getConnectionCount(model.termLeft);
-        int rightConnections = getConnectionCount(model.termRight);
-        
-        if (leftConnections == 0 || rightConnections == 0) {
-            view.circuitStatsLabel.setText("Circuit incomplete: Connect both terminals");
-            view.componentValuesLabel.setText("Selected: None");
-            // Reset all component states
-            for (Components c : model.circuit.getComponents()) {
-                if (!(c instanceof BoardTerminal)) {
-                    c.setSimulationState(0, 0, 0);
+        // 5. Step 3: Check Bulb State (The "Light Up" Logic)
+        for (Components c : model.circuit.getComponents()) {
+            if (c instanceof Bulb) {
+                Bulb b = (Bulb) c;
+                // Calculate real power dissipated: P = I^2 * R
+                double current = b.getCurrentFlow();
+                double power = current * current * b.getResistance();
+                
+                // Logic: Light up if powered, turn off if blown
+                boolean isPowered = power > 0.1; // Threshold to prevent flickering
+                boolean isBlown = power > b.getPowerLimit();
+                
+                if (isBlown) {
+                   // System.out.println("Bulb blew out!"); // Optional debug
+                   b.setLighted(false);
+                } else {
+                   b.setLighted(isPowered);
                 }
             }
-            view.repaint();
-            return;
-        }
-        
-        // 3. Check if power source is configured
-        if (sourceVoltage <= 0) {
-            view.circuitStatsLabel.setText("Configure Power Source first (click battery icon)");
-            view.repaint();
-            return;
         }
 
-        // 4. Get the circuit root (all components connected between terminals)
-        CompositeComponent root = model.circuit.getRoot();
-        
-        if (root == null || model.circuit.getComponents().size() <= 2) {
-            view.circuitStatsLabel.setText("Circuit incomplete: Add components between terminals");
-            view.repaint();
-            return;
-        }
+        // 6. Update Stats Label
+        view.circuitStatsLabel.setText(String.format("Source: %.1fV %.1fHz | Total Z: %.2fΩ | I: %.2fA",
+                voltage, freq, zTotal, iTotal));
 
-        // 5. Calculate circuit impedance and current
-        double totalZ = root.getImpedance(sourceFrequency);
-        double totalI = 0.0;
-        
-        if (totalZ > 0 && !Double.isInfinite(totalZ)) {
-            totalI = sourceVoltage / totalZ;
-        }
-        
-        // 6. Set simulation state for all components
-        double circuitVoltage = sourceVoltage; // Voltage across the circuit
-        root.setSimulationState(circuitVoltage, totalI, sourceFrequency);
-
-        // 7. Update UI with circuit stats
-        view.circuitStatsLabel.setText(String.format("Source: %.1fV @ %.1fHz | Z: %.2fΩ | I: %.3fA",
-                sourceVoltage, 
-                sourceFrequency,
-                totalZ,
-                totalI));
-
-        // 8. Update component details when selected
+        // 7. Update Selection Label
         if (model.firstSelected != null) {
-            view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
+            String details = getComponentDetails(model.firstSelected, freq);
+            if (model.secondSelected != null) {
+                details += " + " + getComponentDetails(model.secondSelected, freq);
+            }
+            view.componentValuesLabel.setText("Selected: " + details);
         } else {
             view.componentValuesLabel.setText("Selected: None");
         }
@@ -407,5 +449,14 @@ public class CircuitController {
         }
         return null;
     }
-
+    
+    private String getBulbStateText(double power, double limit) {
+        if (power > limit * 1.5) { // 150% threshold for blowing out
+            return String.format("BLOWN OUT! (%.1f W)", power);
+        } else if (power > limit * 0.2) { // 20% threshold for light
+            return String.format("LIGHTED (%.1f W)", power);
+        } else {
+            return String.format("OFF (%.2f W)", power);
+        }
+    }
 }
