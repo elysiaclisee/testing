@@ -1,58 +1,65 @@
 package components;
 
 import java.awt.*;
+import java.awt.geom.Rectangle2D;
 
 public class Bulb extends Components {
-    private double resistance;
-    private double powerLimit; // The "Wattage" (e.g., 100W)
+    // --- CÁC ĐẠI LƯỢNG CỐ ĐỊNH (RATED VALUES) ---
+    private static final double V_RATED = 220.0; 
+    private static final double P_RATED = 50.0;  
+    // R = V^2 / P = 220^2 / 50 = 968 Ω
+    private static final double R_BULB = (V_RATED * V_RATED) / P_RATED;
+
     private boolean isLighted = false;
 
-    // 1. Constructor: We ask for Voltage and Power Limit (Wattage)
-    public Bulb(String id, int x, int y, double voltage, double powerLimit) {
+    public Bulb(String id, int x, int y) {
         super(id, x, y);
-        this.powerLimit = powerLimit;
-        // Physics Formula: R = V^2 / P
-        if (powerLimit > 0) {
-            this.resistance = (voltage * voltage) / powerLimit;
-        } else {
-            this.resistance = Double.POSITIVE_INFINITY;
-        }
+        this.width = 60;
+        this.height = 40;
     }
 
-    public Bulb(String id, int x, int y) {
-        this(id, x, y, 220.0, 100.0); 
+    @Override
+    public Complex getImpedance(double frequency) {
+        // Đèn sợi đốt được coi là điện trở thuần (phần ảo = 0)
+        return new Complex(R_BULB, 0);
+    }
+
+    public double getRatedPower() {
+        return P_RATED;
     }
 
     public void setLighted(boolean lighted) {
-        isLighted = lighted;
-    }
-
-    public double getPowerLimit() {
-        return powerLimit;
+        this.isLighted = lighted;
     }
 
     @Override
     public double getResistance() {
-        return resistance;
-    }
-
-    @Override
-    public double getImpedance(double frequency) {
-        return resistance;
+        return R_BULB;
     }
 
     @Override
     public void draw(Graphics2D g2) {
         Color c = isLighted ? Color.YELLOW : Color.DARK_GRAY;
         super.draw(g2, c); 
-        g2.setColor(isLighted ? Color.BLACK : Color.WHITE);
-        g2.setFont(g2.getFont().deriveFont(10f));
         
-        String label = (int)powerLimit + "W";
+        g2.setColor(isLighted ? Color.BLACK : Color.WHITE);
+        g2.setFont(g2.getFont().deriveFont(12f));
+        
+        // Hiển thị thông số cố định định mức
+        String vLabel = "220V";
+        String pLabel = "50W";
+        
         FontMetrics fm = g2.getFontMetrics();
-        int tx = x - fm.stringWidth(label) / 2;
-        int ty = y + fm.getAscent() / 2;
-        g2.drawString(label, tx, ty);
+        Rectangle2D vBounds = fm.getStringBounds(vLabel, g2);
+        Rectangle2D pBounds = fm.getStringBounds(pLabel, g2);
+        
+        int vx = x - (int) vBounds.getWidth() / 2;
+        int vy = y - 2;
+        int px = x - (int) pBounds.getWidth() / 2;
+        int py = y + fm.getAscent() + 2;
+        
+        g2.drawString(vLabel, vx, vy);
+        g2.drawString(pLabel, px, py);
     }
 
     @Override

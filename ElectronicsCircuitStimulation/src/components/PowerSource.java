@@ -18,7 +18,7 @@ public class PowerSource extends Components {
     @Override
     public void draw(Graphics2D g2) {
         draw(g2, java.awt.Color.GREEN);
-        g2.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        g2.setFont(g2.getFont().deriveFont(Font.PLAIN, 12f));
         String vLabel = formatDouble(voltage) + "V";
         String fLabel = formatDouble(frequency) + "Hz";
         FontMetrics fm = g2.getFontMetrics();
@@ -60,7 +60,7 @@ public class PowerSource extends Components {
     }
     
     @Override
-    public double getImpedance(double frequency) {
-        return 0.0; // Ideal source
+    public Complex getImpedance(double frequency) {
+    	return new Complex(0, 0); // Ideal source
     }
 }

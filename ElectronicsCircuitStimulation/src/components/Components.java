@@ -20,7 +20,7 @@ public abstract class Components implements Cloneable {
         this.x = x;
         this.y = y;
     }
-    public abstract double getImpedance(double frequency);
+    public abstract Complex getImpedance(double frequency);
     
     public double getVoltageDrop() { 
     	return voltageDrop; 
@@ -104,5 +104,19 @@ public abstract class Components implements Cloneable {
         } catch (CloneNotSupportedException e) {
             throw new AssertionError(); 
         }
+    }
+ // Inside abstract class Components
+    public Point getConnectorPoint(Components other) {
+        Point p1 = this.getPosition();
+        Point p2 = other.getPosition();
+        
+        // Calculate angle between components
+        double angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        
+        // Calculate point on an oval/ellipse inscribed in the component
+        int cx = (int) (p1.x + (width / 2.0) * Math.cos(angle));
+        int cy = (int) (p1.y + (height / 2.0) * Math.sin(angle));
+        
+        return new Point(cx, cy);
     }
 }

@@ -1,31 +1,20 @@
 package components;
 
-/**
- * Utility methods for computing equivalent resistance and current for simple two-component
- * series (continuous) and parallel connections.
- */
 public class Connections {
-    // series (continuous) equivalent resistance for two resistances
-    public static double series(double r1, double r2) {
-        if (Double.isInfinite(r1) || Double.isInfinite(r2)) {
-            return Double.POSITIVE_INFINITY;
-        }
-        return r1 + r2;
+
+    // Nối tiếp: Z_eq = Z1 + Z2
+    public static Complex series(Complex z1, Complex z2) {
+        return z1.add(z2);
     }
 
-    // parallel equivalent resistance for two resistances
-    public static double parallel(double r1, double r2) {
-        // handle infinities: 1/(1/r1 + 1/r2)
-        if (Double.isInfinite(r1) && Double.isInfinite(r2)) return Double.POSITIVE_INFINITY;
-        if (Double.isInfinite(r1)) return r2; // open circuit in one branch -> other branch only
-        if (Double.isInfinite(r2)) return r1;
-        if (r1 <= 0 || r2 <= 0) return Double.POSITIVE_INFINITY;
-        return 1.0 / (1.0 / r1 + 1.0 / r2);
-    }
-
-    // compute current for a given voltage and equivalent resistance
-    public static double current(double voltage, double req) {
-        if (req <= 0 || Double.isInfinite(req)) return 0.0;
-        return voltage / req;
+    // Song song: Z_eq = (Z1 * Z2) / (Z1 + Z2)
+    public static Complex parallel(Complex d, Complex e) {
+        Complex numerator = d.multiply(e);
+        Complex denominator = d.add(e);
+        
+        // Nếu mẫu số = 0 (cộng hưởng nối tiếp LC lý tưởng trong nhánh song song), trả về 0
+        if (denominator.getMagnitude() < 1e-9) return new Complex(0, 0);
+        
+        return numerator.divide(denominator);
     }
 }

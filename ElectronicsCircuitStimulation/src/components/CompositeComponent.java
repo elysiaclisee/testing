@@ -42,31 +42,20 @@ public class CompositeComponent extends Components {
     }
 
     @Override
-    public double getImpedance(double frequency) {
-        if (children.isEmpty()) return Double.POSITIVE_INFINITY; //open circuit
+    public Complex getImpedance(double frequency) {
+        if (children.isEmpty()) return new Complex(1e9, 0); //open circuit
 
-        if (mode == Mode.SERIES) {
-            double totalZ = 0.0;
-            for (Components c : children) {
-                totalZ += c.getImpedance(frequency);
+        Complex total = children.get(0).getImpedance(frequency);
+        for (int i = 1; i < children.size(); i++) {
+            Complex nextZ = children.get(i).getImpedance(frequency);
+            if (mode == Mode.SERIES) {
+                total = total.add(nextZ); // Dùng hàm add của Complex
+            } else {
+                total = Connections.parallel(total, nextZ); // Dùng hàm parallel của Connections
             }
-            return totalZ;
-        } else {
-            double inverseZ = 0.0;
-            boolean hasShort = false; // check for short circuit
-
-            for (Components c : children) {
-                double z = c.getImpedance(frequency);
-                if (Math.abs(z) < 1e-9) { hasShort = true; break; } // short circuit (no R) then flow through that path
-                if (!Double.isInfinite(z)) inverseZ += 1.0 / z; //parallel formula
-            }
-
-            if (hasShort) return 0.0; 
-            if (inverseZ == 0.0) return Double.POSITIVE_INFINITY; //condition 
-            return 1.0 / inverseZ; //reverse back 
         }
+        return total;
     }
-
     @Override
     public void setSimulationState(double voltage, double current, double frequency) {
         super.setSimulationState(voltage, current, frequency); // Store state
@@ -83,47 +72,49 @@ public class CompositeComponent extends Components {
     private void handleSeriesDistribution(double totalVoltage, double totalCurrent, double frequency) {
         int openComponents = 0;
         
+        // Kiểm tra các linh kiện hở mạch (trở kháng cực lớn)
         for(Components c : children) {
-            if(Double.isInfinite(c.getImpedance(frequency))) openComponents++;
+            if(c.getImpedance(frequency).getMagnitude() > 1e8) openComponents++;
         }
 
         for (Components c : children) {
-            double z = c.getImpedance(frequency);
+            Complex zComplex = c.getImpedance(frequency);
+            double zMag = zComplex.getMagnitude();
             double vDrop;
 
             if (openComponents > 0) {
-                // If open circuit, voltage appears across the open gap
-                if (Double.isInfinite(z)) {
-                    vDrop = totalVoltage / openComponents; 
-                } else {
-                    vDrop = 0.0; 
-                }
+                // Nếu có linh kiện hở mạch, áp sẽ rơi hết vào các điểm hở đó
+                vDrop = (zMag > 1e8) ? totalVoltage / openComponents : 0.0;
             } else {
-                vDrop = totalCurrent * z;
+                // Công thức Ohm: V = I * |Z|
+                vDrop = totalCurrent * zMag;
             }
-            c.setSimulationState(vDrop, totalCurrent, frequency); //loop like a tree traversal 
+            c.setSimulationState(vDrop, totalCurrent, frequency);
         }
     }
 
     private void handleParallelDistribution(double totalVoltage, double frequency) {
         for (Components c : children) {
-            double z = c.getImpedance(frequency);
+            double zMag = c.getImpedance(frequency).getMagnitude();
             double iBranch;
-            if (Math.abs(z) < 1e-9) {
-                // If shorted, it conceptually takes max current, but for sim safety:
-                iBranch = (this.getImpedance(frequency) < 1e-9) ? this.currentFlow : 0; //calculate I 
-            } else if (Double.isInfinite(z)) {
+
+            if (zMag < 1e-9) { 
+                // Trường hợp đoản mạch (Short circuit)
+                iBranch = (this.getImpedance(frequency).getMagnitude() < 1e-9) ? this.currentFlow : 0;
+            } else if (zMag > 1e8) {
+                // Trường hợp hở mạch (Open circuit)
                 iBranch = 0.0;
             } else {
-                iBranch = totalVoltage / z;
+                // Công thức Ohm: I = V / |Z|
+                iBranch = totalVoltage / zMag;
             }
             c.setSimulationState(totalVoltage, iBranch, frequency);
         }
     }
-
+    
     @Override
     public double getResistance() {
-        return getImpedance(0);
+    	return getImpedance(0).getReal();
     }
 
     @Override

@@ -19,12 +19,10 @@ public class CircuitPanel extends JPanel {
     public final JLabel instructionLabel = new JLabel("Select two components and click a connect button.");
     public final JLabel circuitStatsLabel = new JLabel("Circuit: -");
     public final JLabel componentValuesLabel = new JLabel("Selection: None");
-    
- // THÊM: Khu vực chọn chế độ bóng đèn
-    public final JRadioButton rbSeriesBulb = new JRadioButton("Bulb Series Mode", true); // Mặc định chọn
-    public final JRadioButton rbParallelBulb = new JRadioButton("Bulb Parallel Mode");
+    // THÊM: Khu vực chọn chế độ bóng đèn
+    public final JRadioButton rbSeriesBulb = new JRadioButton("Circuit connects series to bulb", true); // Mặc định chọn
+    public final JRadioButton rbParallelBulb = new JRadioButton("Circuit connects parallel to bulb");
     public final ButtonGroup modeGroup = new ButtonGroup();
-
     private final CircuitModel model;
 
     public CircuitPanel(CircuitModel model) {
@@ -45,9 +43,8 @@ public class CircuitPanel extends JPanel {
         circuitStatsLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
         componentValuesLabel.setForeground(new Color(0, 100, 0));
         
-     // Thêm nút vào GUI (Vị trí tùy bạn chỉnh lại cho đẹp)
-        rbSeriesBulb.setBounds(10, 110, 150, 30);
-        rbParallelBulb.setBounds(170, 110, 150, 30);
+        rbSeriesBulb.setBounds(950, 30, 250, 28);
+        rbParallelBulb.setBounds(950, 70, 250, 28);
         rbSeriesBulb.setBackground(Color.WHITE);
         rbParallelBulb.setBackground(Color.WHITE);
         
@@ -56,7 +53,6 @@ public class CircuitPanel extends JPanel {
         
         add(rbSeriesBulb);
         add(rbParallelBulb);
-
         add(seriesBtn);
         add(parallelBtn);
         add(undoBtn);
@@ -148,12 +144,13 @@ Welcome to our Circuit Simulator!
 This application allows you to create and simulate simple electronic circuits using components like resistors, capacitors, inductors, bulbs, and a power source.
  
 Before you start, here are some key notes you must read:
-- Default power source type is AC (Alternating Current). This is why only one power source is allowed in the circuit.
-Design your circuit freely, then connect 2 components on 2 end each to a point on 2 opposite edges. That's how we connect to power source.
+- Default power source type is AC (Alternating Current). This is why only one power source is allowed in the circuit, and 0Hz frequency is not accepted.
+Design your circuit freely, then connect 2 last components on 2 end of your circuit each to a terminal on the board. That's how we connect to power source.
 This ensures our circuit is closed.  	                      
 - Dragging components to borders of the circuit board may make them inaccessible. Please keep components within the visible area. 
 - If you want to connect 2 components, select the first one, then hit CTRL and select the second one. Then click connection buttons to connect them.
-- For simplicity, right now only 1 bulb is supported. 
+- For simplicity, right now only 1 bulb is supported, and there are 2 options: series or parallel connection to the whole circuit on board.
+Each connection option will have a state update for you to check, along with displayed values.
 
 Thank you for understanding these limitations as we work to improve the simulator in future versions!
                 """;
