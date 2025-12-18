@@ -19,7 +19,6 @@ public class CircuitPanel extends JPanel {
     public final JLabel instructionLabel = new JLabel("Select two components and click a connect button.");
     public final JLabel circuitStatsLabel = new JLabel("Circuit: -");
     public final JLabel componentValuesLabel = new JLabel("Selection: None");
-    // THÊM: Khu vực chọn chế độ bóng đèn
     public final JRadioButton rbSeriesBulb = new JRadioButton("Circuit connects series to bulb", true); // Mặc định chọn
     public final JRadioButton rbParallelBulb = new JRadioButton("Circuit connects parallel to bulb");
     public final ButtonGroup modeGroup = new ButtonGroup();

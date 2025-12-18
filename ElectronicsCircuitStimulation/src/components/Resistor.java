@@ -28,6 +28,12 @@ public class Resistor extends Components {
     }
 
     @Override
+    public Complex getImpedance(double frequency) {
+        // Trở thuần: Z = R + 0j
+        return new Complex(resistance, 0);
+    }
+
+    @Override
     public double getResistance() {
         return resistance;
     }
@@ -41,8 +47,4 @@ public class Resistor extends Components {
 	    return new Rectangle(x - width / 2, y - height / 2, width, height);
 	}
 
-	@Override
-	public double getImpedance(double frequency) {
-		return resistance;
-	}
 }

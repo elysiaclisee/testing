@@ -49,8 +49,9 @@ public class Inductor extends Components {
     }
     
     @Override
-    public double getImpedance(double frequency) {
-        // Z = 2 * pi * f * L + R_internal
-        return (2.0 * Math.PI * frequency * inductance) + resistance;
+    public Complex getImpedance(double frequency) {
+        // ZL = R_internal + j(2 * pi * f * L)
+        double xl = 2.0 * Math.PI * frequency * inductance;
+        return new Complex(0.1, xl); // 0.1 là nội trở dây dẫn cố định
     }
 }

@@ -20,7 +20,7 @@ public abstract class Components implements Cloneable {
         this.x = x;
         this.y = y;
     }
-    public abstract double getImpedance(double frequency);
+    public abstract Complex getImpedance(double frequency);
     
     public double getVoltageDrop() { 
     	return voltageDrop; 

@@ -35,9 +35,9 @@ public class ToolboxView {
         }
 
         // Initialize Dummies
-        sampleSource = new PowerSource("Display", 0, 0, 0.0, 0.0);
+        sampleSource = new PowerSource("Display", 0, 0, 220.0, 50.0);
         sampleResistor = new Resistor("Display", 0, 0, 0); 
-        sampleBulb = new Bulb("Display", 0, 0, 220.0, 50.0);
+        sampleBulb = new Bulb("Display", 0, 0);
         sampleCapacitor = new Capacitor("Display", 0, 0, 0);
         sampleInductor = new Inductor("Display", 0, 0, 0);
         
@@ -97,8 +97,8 @@ public class ToolboxView {
             if (slots[i].contains(p)) {
                 switch (i) {
                     case 0 -> { return Tool.POWER_SOURCE; }
-                    case 1 -> { return Tool.BULB; }     // Swapped: Index 1 is now Bulb
-                    case 2 -> { return Tool.RESISTOR; } // Swapped: Index 2 is now Resistor
+                    case 1 -> { return Tool.BULB; }     
+                    case 2 -> { return Tool.RESISTOR; } 
                     case 3 -> { return Tool.CAPACITOR; }
                     case 4 -> { return Tool.INDUCTOR; }
                 }

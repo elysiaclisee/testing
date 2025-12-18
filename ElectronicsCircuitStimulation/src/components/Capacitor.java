@@ -8,17 +8,21 @@ public class Capacitor extends Components {
     public Capacitor(String id, int x, int y, double capacitance) {
         super(id, x, y);
         this.capacitance = capacitance;
-        this.resistance = Double.POSITIVE_INFINITY;
     }
 
     public Capacitor(String id, int x, int y) {
         this(id, x, y, 1e-6);
     }
+
     @Override
-    public double getImpedance(double frequency) {
-        if (frequency <= 1e-9) return Double.POSITIVE_INFINITY; 
-        // AC case -> Z = 1 / (2 * pi * f * C)
-        return 1.0 / (2.0 * Math.PI * frequency * capacitance);
+    public Complex getImpedance(double frequency) {
+        // ZC = -1 / (2 * pi * f * C) (Phần ảo âm)
+        if (frequency <= 1e-9) {
+            // Tần số thấp (DC) -> Hở mạch (trở kháng ảo cực lớn)
+            return new Complex(0, -1e9); 
+        }
+        double xc = -1.0 / (2 * Math.PI * frequency * capacitance);
+        return new Complex(0, xc);
     }
 
     @Override
@@ -32,9 +36,9 @@ public class Capacitor extends Components {
 
     private String formatDouble(double d) {
         if (d == (long) d) {
-            return String.format("%d", (long) d);
+            return String.format("%d", (long) d); 
         } else {
-            return String.format("%.2f", d);
+            return String.format("%.2e", d); // Dùng định dạng E cho điện dung nhỏ
         }
     }
 
@@ -44,19 +48,16 @@ public class Capacitor extends Components {
         int y = rect.y + (rect.height - fm.getHeight()) / 2 + fm.getAscent();
         g2.drawString(text, x, y);
     }
-
-    @Override
-    public double getResistance() {
-        // For DC steady-state a capacitor is an open circuit => infinite resistance
-        return resistance;
-    }
-
     public double getCapacitance() {
         return capacitance;
     }
+    @Override
+    public double getResistance() {
+        return Double.POSITIVE_INFINITY;
+    }
 
-	@Override
-	public Rectangle getBounds() {
-		return new Rectangle(x - width / 2, y - height / 2, width, height);
-	}
+    @Override
+    public Rectangle getBounds() {
+        return new Rectangle(x - width / 2, y - height / 2, width, height);
+    }
 }

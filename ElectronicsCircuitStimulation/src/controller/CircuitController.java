@@ -48,57 +48,53 @@ public class CircuitController {
                 
                 Toolbox.Tool t = view.toolboxView.hitTool(p);
 
+                // --- CASE 1: Power Source Tool (Updates Global Settings) ---
+                if (t == Toolbox.Tool.POWER_SOURCE) {
+                    double[] vals = view.toolboxView.promptForPowerSource();
+                    if (vals == null) return; 
+
+                    view.toolboxView.updatePowerSourceDisplay(vals[0], vals[1]);
+                    model.circuit.setPowerSupply(vals[0], vals[1]);
+
+                    updateCircuit();
+                    view.repaint();
+                    return; 
+                }
+                
+                // --- CASE 2: Component Tools (Creates new parts) ---
                 if (t != null) {
-                    // --- CASE 1: Power Source Tool (Updates Global Settings) ---
-                    if (t == Toolbox.Tool.POWER_SOURCE) {
-                        double[] vals = view.toolboxView.promptForPowerSource();
-                        if (vals == null) return; 
-
-                        view.toolboxView.updatePowerSourceDisplay(vals[0], vals[1]);
-                        model.circuit.setPowerSupply(vals[0], vals[1]);
-
-                        updateCircuit();
-                        view.repaint();
-                        return; 
-                    }
+                    Components newComponent = null;
+                    int spawnX = view.boardRect.x + view.boardRect.width / 2;
+                    int spawnY = view.boardRect.y + view.boardRect.height / 2;
                     
-                    // --- CASE 2: Component Tools (Creates new parts) ---
-                    double[] inputs = {};
                     switch (t) {
                         case RESISTOR:
                             Double r = view.toolboxView.promptForValue("Resistor", "Ohms");
-                            if (r == null) return; 
-                            inputs = new double[]{r};
+                            if (r == null || r <= 0) return;
+                            newComponent = new Resistor("R" + System.currentTimeMillis(), spawnX, spawnY, r);
                             break;
                         case CAPACITOR:
                             Double c = view.toolboxView.promptForValue("Capacitor", "F");
-                            if (c == null) return;
-                            inputs = new double[]{c};
+                            if (c == null || c <= 0) return;
+                            newComponent = new Capacitor("C" + System.currentTimeMillis(), spawnX, spawnY, c);
                             break;
                         case INDUCTOR:
                             Double l = view.toolboxView.promptForValue("Inductor", "H");
-                            if (l == null) return;
-                            inputs = new double[]{l};
+                            if (l == null || l <= 0) return;
+                            newComponent = new Inductor("L" + System.currentTimeMillis(), spawnX, spawnY, l);
                             break;
                         case BULB:
-							break;
+                            break;
+                        default:
+                            break;
                     }
-                    saveState();
                     
-                    Components c = Toolbox.create(t, 
-                        view.boardRect.x + view.boardRect.width / 2, 
-                        view.boardRect.y + 40, 
-                        inputs);
-                    
-                    if (c == null) return;
-
-                    model.circuit.addComponent(c);                   
-                    clearSelection();
-                    c.setSelected(true);
-                    model.firstSelected = c;
-                    
-                    updateCircuit();
-                    view.repaint();
+                    if (newComponent != null) {
+                        saveState();
+                        model.addComponent(newComponent);
+                        updateCircuit();
+                        view.repaint();
+                    }
                     return;
                 }
 
@@ -179,7 +175,7 @@ public class CircuitController {
                 updateCircuit();
                 view.repaint();                  
             }
-
+            
             @Override
             public void mouseReleased(MouseEvent e) {
                 Point p = e.getPoint();
@@ -324,7 +320,12 @@ public class CircuitController {
         
         if (leftConnections == 0 || rightConnections == 0) {
             view.circuitStatsLabel.setText("Circuit incomplete: Connect both terminals");
-            view.componentValuesLabel.setText("Selected: None");
+            // Still show selected component details even when circuit is incomplete
+            if (model.firstSelected != null) {
+                view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
+            } else {
+                view.componentValuesLabel.setText("Selected: None");
+            }
             // Reset all component states
             for (Components c : model.circuit.getComponents()) {
                 if (!(c instanceof BoardTerminal)) {
@@ -338,61 +339,114 @@ public class CircuitController {
         // 3. Check if power source is configured
         if (sourceVoltage <= 0) {
             view.circuitStatsLabel.setText("Configure Power Source first (click battery icon)");
+            // Still show selected component details
+            if (model.firstSelected != null) {
+                view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
+            } else {
+                view.componentValuesLabel.setText("Selected: None");
+            }
             view.repaint();
             return;
         }
 
-        // 4. Get the circuit root (all components connected between terminals)
+     // 4. Get root circuit and calculate based on gameMode
         CompositeComponent root = model.circuit.getRoot();
-        
-        if (root == null || model.circuit.getComponents().size() <= 2) {
-            view.circuitStatsLabel.setText("Circuit incomplete: Add components between terminals");
+        if (root == null) {
+            view.circuitStatsLabel.setText("Circuit incomplete");
+            // Still show selected component details
+            if (model.firstSelected != null) {
+                view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
+            } else {
+                view.componentValuesLabel.setText("Selected: None");
+            }
             view.repaint();
             return;
         }
 
-        // 5. Calculate circuit impedance and current
-        double totalZ = root.getImpedance(sourceFrequency);
-        double totalI = 0.0;
+        // 5. TÍNH TOÁN CÔNG SUẤT DỰA TRÊN GAMEMODE (Virtual Bulb)
+        Complex zUser = root.getImpedance(sourceFrequency);
         
-        if (totalZ > 0 && !Double.isInfinite(totalZ)) {
-            totalI = sourceVoltage / totalZ;
+        // Virtual bulb properties (220V, 50W -> R = 968Ω)
+        double V_RATED = 220.0;
+        double P_RATED = 50.0;
+        double R_BULB = (V_RATED * V_RATED) / P_RATED; // 968Ω
+        Complex zBulb = new Complex(R_BULB, 0);
+        
+        double totalZ, totalI, iBulb, pBulb;
+        
+        if (gameMode == CircuitManager.ConnectionMode.SERIES_WITH_BULB) {
+            // Nối tiếp: I_bulb = I_total
+            Complex zTotalComplex = zUser.add(zBulb);
+            totalZ = zTotalComplex.getMagnitude();
+            totalI = (totalZ > 0) ? sourceVoltage / totalZ : 0.0;
+            iBulb = totalI;
+            pBulb = iBulb * iBulb * R_BULB;
+        } else {
+            // Song song: V_bulb = V_source
+            Complex zTotalComplex = Connections.parallel(zUser, zBulb);
+            totalZ = zTotalComplex.getMagnitude();
+            totalI = (totalZ > 0) ? sourceVoltage / totalZ : 0.0;
+            iBulb = sourceVoltage / zBulb.getMagnitude();
+            pBulb = iBulb * iBulb * R_BULB;
         }
         
-        // 6. Set simulation state for all components
-        double circuitVoltage = sourceVoltage; // Voltage across the circuit
-        root.setSimulationState(circuitVoltage, totalI, sourceFrequency);
-
-        // 7. Update UI with circuit stats
-        view.circuitStatsLabel.setText(String.format("Source: %.1fV @ %.1fHz | Z: %.2fΩ | I: %.3fA",
-                sourceVoltage, 
-                sourceFrequency,
-                totalZ,
-                totalI));
-
+        // 6. XÉT TRẠNG THÁI SÁNG DỰA TRÊN SO SÁNH VỚI P_RATED
+        double powerRatio = pBulb / P_RATED;
+        String status;
+        
+        if (powerRatio > 1.5) {
+            status = "BURNT";
+        } else if (powerRatio >= 0.8) {
+            status = "BRIGHT";
+        } else if (powerRatio >= 0.2) {
+            status = "WEAK";
+        } else {
+            status = "OFF";
+        }
+        
+        // Cập nhật trạng thái mô phỏng cho root
+        root.setSimulationState(sourceVoltage, totalI, sourceFrequency);
+        
+        // Update any physical bulb on board if exists (optional visual feedback)
+        for (Components c : model.circuit.getComponents()) {
+            if (c instanceof Bulb) {
+                Bulb bulb = (Bulb) c;
+                bulb.setLighted(powerRatio >= 0.2 && powerRatio <= 1.5);
+                bulb.setSimulationState(iBulb * R_BULB, iBulb, sourceFrequency);
+                break;
+            }
+        }
+        
+        // Format status with color using HTML
+        String formattedStatus = status;
+        if (status.equals("BURNT")) {
+            formattedStatus = "<font color='red'><b>BURNT</b></font>";
+        } else if (status.equals("BRIGHT")) {
+            formattedStatus = "<font color='green'><b>BRIGHT</b></font>";
+        } else if (status.equals("WEAK")) {
+            formattedStatus = "<font color='orange'><b>WEAK</b></font>";
+        } else if (status.equals("OFF")) {
+            formattedStatus = "<font color='gray'><b>OFF</b></font>";
+        }
+        
+        view.circuitStatsLabel.setText(String.format("<html>V: %.2fV | Z: %.2fΩ | I: %.2fA | Bulb: %.2fW/%.0fW [%s]</html>",
+                sourceVoltage, totalZ, totalI, pBulb, P_RATED, formattedStatus));
+        
         // 8. Update component details when selected
         if (model.firstSelected != null) {
             view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
         } else {
             view.componentValuesLabel.setText("Selected: None");
         }
-        
-        view.repaint();
     }
 
-    // FIX: Added 'freq' parameter to show live Impedance
     private String getComponentDetails(Components c, double freq) {
+        // Gọi .getMagnitude() vì getImpedance hiện tại trả về Complex
         if (c instanceof Resistor) return String.format("R: %.2f Ω", c.getResistance());
-        if (c instanceof Capacitor) return String.format("C: %.2e F (Z: %.2f Ω)", ((Capacitor) c).getCapacitance(), c.getImpedance(freq));
-        if (c instanceof Inductor) return String.format("L: %.2e H (Z: %.2f Ω)", ((Inductor) c).getInductance(), c.getImpedance(freq));
-        if (c instanceof PowerSource) {
-            PowerSource b = (PowerSource) c;
-            return String.format("%.2f V / %.2f Hz", b.getVoltage(), b.getFrequency());
-        }
-        if (c instanceof Bulb) return String.format("Bulb (%.2f V)", c.getVoltageDrop());
+        if (c instanceof Capacitor) return String.format("C: %.2e F (Z: %.2f Ω)", ((Capacitor) c).getCapacitance(), c.getImpedance(freq).getMagnitude());
+        if (c instanceof Inductor) return String.format("L: %.2e H (Z: %.2f Ω)", ((Inductor) c).getInductance(), c.getImpedance(freq).getMagnitude());
         return c.getId();
     }
-
     private void clearSelection() {
         for (Components c : model.circuit.getComponents()) c.setSelected(false);
         model.firstSelected = null;

@@ -13,10 +13,7 @@ public class BoardTerminal extends Components {
     @Override
     public void draw(Graphics2D g2) {
         g2.setColor(Color.BLACK);
-        // Draw the terminal itself
         g2.fillOval(x - width/2, y - height/2, width, height);
-        
-        // Label
         g2.drawString(id, x - 5, y - 10);
         drawSelection(g2); 
     }
@@ -31,8 +28,9 @@ public class BoardTerminal extends Components {
         return 0;
     }
 
-	@Override
-	public double getImpedance(double frequency) {
-		return 0;
-	}
+    // Cập nhật trả về Complex(0, 0)
+    @Override
+    public Complex getImpedance(double frequency) {
+        return new Complex(0, 0);
+    }
 }

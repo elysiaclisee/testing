@@ -60,7 +60,7 @@ public class PowerSource extends Components {
     }
     
     @Override
-    public double getImpedance(double frequency) {
-        return 0.0; // Ideal source
+    public Complex getImpedance(double frequency) {
+    	return new Complex(0, 0); // Ideal source
     }
 }
