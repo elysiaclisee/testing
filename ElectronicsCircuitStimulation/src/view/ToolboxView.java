@@ -7,7 +7,7 @@ import java.awt.geom.Rectangle2D;
 import javax.swing.*;
 
 public class ToolboxView {
-    public static final int X = 10;
+    public static final int X = 20;
     public static final int Y = 10;
     public static final int WIDTH = 530;
     public static final int HEIGHT = 120;

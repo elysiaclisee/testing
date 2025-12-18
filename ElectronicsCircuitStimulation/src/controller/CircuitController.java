@@ -1,6 +1,6 @@
 package controller;
 
-import model.CircuitMemento;
+import model.CircuitAction;
 import model.CircuitModel;
 import view.CircuitPanel;
 import components.*;
@@ -90,7 +90,6 @@ public class CircuitController {
                     }
                     
                     if (newComponent != null) {
-                        saveState();
                         model.addComponent(newComponent);
                         updateCircuit();
                         view.repaint();
@@ -102,19 +101,21 @@ public class CircuitController {
                 Components hit = componentAt(p);
                 if (hit != null) {
                 	if (hit instanceof BoardTerminal) {
-                        // Toggle selection for terminals
+                        // Terminals are fixed - only allow selection, no dragging
                         handleSelection(hit, e.isControlDown());
-                        view.repaint();
+                        view.paintImmediately(view.getBounds());
                         return; 
                     }
                     
-                    // Dragging logic
-                    model.dragging = hit;
-                    model.dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
-                    handleSelection(hit, e.isControlDown());
-                    
-                    updateCircuit();
-                    view.repaint();
+                    // Dragging logic - only allow dragging if click is within the board
+                    if (view.boardRect.contains(p)) {
+                        model.dragging = hit;
+                        model.dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
+                        handleSelection(hit, e.isControlDown());
+                        
+                        updateCircuit();
+                        view.paintImmediately(view.getBounds());
+                    }
                     return;
                 }
                 
@@ -126,8 +127,9 @@ public class CircuitController {
                 }
             }
             
-            // Helper to clean up selection logic
+            // Helper to clean up selection logic - allows selecting up to 2 components without Ctrl
             private void handleSelection(Components hit, boolean isCtrl) {
+                // If Ctrl is held, allow toggle behavior (for advanced users)
                 if (isCtrl) {
                     if (hit.isSelected()) {
                         hit.setSelected(false);
@@ -139,7 +141,22 @@ public class CircuitController {
                         else if (model.secondSelected == null) model.secondSelected = hit;
                     }
                 } else {
-                    if (!hit.isSelected()) {
+                    // NEW BEHAVIOR: Without Ctrl, allow selecting up to 2 components sequentially
+                    if (hit.isSelected()) {
+                        // Clicking on already selected component deselects it
+                        hit.setSelected(false);
+                        if (model.firstSelected == hit) model.firstSelected = null;
+                        if (model.secondSelected == hit) model.secondSelected = null;
+                    } else if (model.firstSelected == null) {
+                        // No selection yet - select as first
+                        hit.setSelected(true);
+                        model.firstSelected = hit;
+                    } else if (model.secondSelected == null) {
+                        // First is selected, select this as second
+                        hit.setSelected(true);
+                        model.secondSelected = hit;
+                    } else {
+                        // Both already selected - clear all and start over with this one
                         clearSelection();
                         hit.setSelected(true);
                         model.firstSelected = hit;
@@ -150,7 +167,13 @@ public class CircuitController {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (model.dragging == null) return;
+                
                 Point p = e.getPoint();
+                
+                // First, clamp the mouse position itself to the board boundaries
+                int clampedX = Math.max(view.boardRect.x, Math.min(view.boardRect.x + view.boardRect.width, p.x));
+                int clampedY = Math.max(view.boardRect.y, Math.min(view.boardRect.y + view.boardRect.height, p.y));
+                
                 Rectangle bounds = model.dragging.getBounds();
                 if (bounds == null) bounds = new Rectangle(0,0,40,40);
 
@@ -159,10 +182,10 @@ public class CircuitController {
                 int offsetX = (model.dragOffset != null) ? model.dragOffset.x : 0;
                 int offsetY = (model.dragOffset != null) ? model.dragOffset.y : 0;
 
-                int nx = p.x - offsetX;
-                int ny = p.y - offsetY;
+                int nx = clampedX - offsetX;
+                int ny = clampedY - offsetY;
 
-                // Clamping to board boundaries
+                // Ensure the component stays fully within board boundaries
                 int minX = view.boardRect.x + halfWidth;
                 int maxX = view.boardRect.x + view.boardRect.width - halfWidth;
                 int minY = view.boardRect.y + halfHeight;
@@ -173,24 +196,16 @@ public class CircuitController {
 
                 model.dragging.setPosition(nx, ny);
                 updateCircuit();
-                view.repaint();                  
+                view.paintImmediately(view.getBounds());
             }
             
             @Override
             public void mouseReleased(MouseEvent e) {
-                Point p = e.getPoint();
                 if (model.dragging != null) {
-                    // Delete if dropped outside
-                    if (!view.boardRect.contains(p)) {
-                        model.circuit.removeComponent(model.dragging);
-                        // Also re-enable bulb tool if we deleted a bulb
-                        if(model.dragging instanceof Bulb) {
-                             // view.toolboxView.setToolEnabled(Toolbox.Tool.BULB, true); // Uncomment if implemented
-                        }
-                    }
+                    // Component is guaranteed to be within board boundaries due to drag constraints
                     model.dragging = null;
                     updateCircuit();
-                    view.repaint();
+                    view.paintImmediately(view.getBounds());
                 }
             }
         };
@@ -199,23 +214,9 @@ public class CircuitController {
     }
 
     private void undo() {
-        if (model.undoStack.isEmpty()) return;
-        CircuitMemento memento = model.undoStack.remove(model.undoStack.size() - 1);
-        model.redoStack.add(new CircuitMemento(model.circuit, model.wires));
-        restoreState(memento);
-        view.repaint();
-    }
-
-    private void saveState() {
-        model.redoStack.clear();
-        model.undoStack.add(new CircuitMemento(model.circuit, model.wires));
-    }
-
-    private void restoreState(CircuitMemento memento) {
-        model.circuit.setComponents(memento.getComponents());
-        model.wires.clear();
-        model.wires.addAll(memento.getWires());
+        model.undo();
         updateCircuit();
+        view.repaint();
     }
 
     private void connectSelected(CompositeComponent.Mode mode) {
@@ -232,7 +233,6 @@ public class CircuitController {
         boolean involveTerminal = isTerm1 || isTerm2;
 
         if (involveTerminal) {
-            // FIX: Use 'mode' instead of 'type'
         	if (mode == CompositeComponent.Mode.PARALLEL) {
         	    view.instructionLabel.setText("Board terminals only support SERIES connections.");
         	    return;
@@ -274,25 +274,79 @@ public class CircuitController {
             }
         }
         
+     // Check limit for C1 (if it is a Parallel Box)
+        if (c1 instanceof CompositeComponent) {
+            CompositeComponent comp1 = (CompositeComponent) c1;
+            if (comp1.getMode() == CompositeComponent.Mode.PARALLEL) {
+                // Check how many wires are already on the side C2 is trying to connect to
+                int connectionsOnSide = getConnectionCountOnSide(comp1, c2);
+                if (connectionsOnSide >= 1) {
+                    view.instructionLabel.setText("Parallel box connection point is full (max 1 per side).");
+                    return;
+                }
+            }
+        }
+        
+        // Check limit for C2 (if it is a Parallel Box)
+        if (c2 instanceof CompositeComponent) {
+            CompositeComponent comp2 = (CompositeComponent) c2;
+            if (comp2.getMode() == CompositeComponent.Mode.PARALLEL) {
+                // Check how many wires are already on the side C1 is trying to connect to
+                int connectionsOnSide = getConnectionCountOnSide(comp2, c1);
+                if (connectionsOnSide >= 1) {
+                    view.instructionLabel.setText("Parallel box connection point is full (max 1 per side).");
+                    return;
+                }
+            }
+        }
+        
         if (areConnected(c1, c2)) {
             view.instructionLabel.setText("Already connected.");
             return;
         }
         
-        saveState();
+        // Clear selection BEFORE making the connection to avoid referencing removed components
+        clearSelection();
         
         if (mode == CompositeComponent.Mode.PARALLEL) {
+            // For parallel connections, create a composite group box (no wire line)
+            // The circuit.connect() method will remove c1 and c2, and add a new CompositeComponent
             model.circuit.connect(c1, c2, mode);
+            
+            // Find the newly created composite group to record the action
+            CompositeComponent newGroup = null;
+            for (Components comp : model.circuit.getComponents()) {
+                if (comp instanceof CompositeComponent) {
+                    CompositeComponent cc = (CompositeComponent) comp;
+                    if (cc.getMode() == CompositeComponent.Mode.PARALLEL && 
+                        cc.getChildren().contains(c1) && cc.getChildren().contains(c2)) {
+                        newGroup = cc;
+                        break;
+                    }
+                }
+            }
+            
+            // Record the action as adding the new composite component
+            if (newGroup != null) {
+                model.undoStack.add(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, newGroup));
+            }
+            view.instructionLabel.setText("Parallel group created.");
         } else {
-            model.wires.add(new Wire(c1, c2, Wire.Type.SERIES));
-            model.circuit.connect(c1, c2, mode);
+            // For series connections, use addWire which records the action automatically
+            model.addWire(c1, c2, Wire.Type.SERIES);
+            view.instructionLabel.setText("Series connection created.");
         }
+        
+        // Update circuit calculations and force immediate synchronous repaint
+        updateCircuit();
+        view.paintImmediately(view.getBounds());
     }
     
     private int getConnectionCount(Components c) {
         int count = 0;
         for (Wire w : model.wires) {
-            if (w.getA() == c || w.getB() == c) {
+            String id = c.getId();
+            if (w.getA().getId().equals(id) || w.getB().getId().equals(id)) {
                 count++;
             }
         }
@@ -300,9 +354,16 @@ public class CircuitController {
     }
 
     private boolean areConnected(Components c1, Components c2) {
+        String id1 = c1.getId();
+        String id2 = c2.getId();
+        
         for (Wire w : model.wires) {
-            if ((w.getA() == c1 && w.getB() == c2) || 
-                (w.getA() == c2 && w.getB() == c1)) {
+            String wa = w.getA().getId();
+            String wb = w.getB().getId();
+
+            // FIX: Check IDs to survive Undo/Redo object swapping
+            if ((wa.equals(id1) && wb.equals(id2)) || 
+                (wa.equals(id2) && wb.equals(id1))) {
                 return true;
             }
         }
@@ -461,5 +522,62 @@ public class CircuitController {
         }
         return null;
     }
+    
+private int getConnectionCountOnSide(CompositeComponent parallelBox, Components otherComponent) {
+    if (parallelBox.getMode() != CompositeComponent.Mode.PARALLEL) {
+        return 0;
+    }
 
+    // 1. Calculate the exact positions of the Left and Right connection dots
+    // We replicate the logic from CompositeComponent.draw() to be 100% sure
+    int minX = Integer.MAX_VALUE;
+    int maxX = Integer.MIN_VALUE;
+    
+    List<Components> children = parallelBox.getChildren();
+    if (children.isEmpty()) {
+        minX = parallelBox.getPosition().x - 20;
+        maxX = parallelBox.getPosition().x + 20;
+    } else {
+        for (Components c : children) {
+            Rectangle b = c.getBounds();
+            if (b.x < minX) minX = b.x;
+            if (b.x + b.width > maxX) maxX = b.x + b.width;
+        }
+    }
+    
+    int padding = 30;
+    int railLeftX = minX - padding;
+    int railRightX = maxX + padding;
+    
+    // 2. Determine which side the NEW component is targeting
+    // We compare distances: Is it closer to the Left Rail or Right Rail?
+    int targetX = otherComponent.getPosition().x;
+    boolean targettingLeft = Math.abs(targetX - railLeftX) < Math.abs(targetX - railRightX);
+
+    int count = 0;
+    
+    // 3. Check existing connections
+    for (Wire w : model.wires) {
+        Components connected = null;
+        
+        // Use ID comparison to be safe against Undo/Redo cloning issues
+        if (w.getA().getId().equals(parallelBox.getId())) {
+            connected = w.getB();
+        } else if (w.getB().getId().equals(parallelBox.getId())) {
+            connected = w.getA();
+        }
+        
+        if (connected != null) {
+            // Check which side this EXISTING wire is connected to
+            int existingX = connected.getPosition().x;
+            boolean existingIsOnLeft = Math.abs(existingX - railLeftX) < Math.abs(existingX - railRightX);
+            
+            // If they are targeting the same side, increment count
+            if (existingIsOnLeft == targettingLeft) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
 }
