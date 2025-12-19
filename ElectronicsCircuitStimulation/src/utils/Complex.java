@@ -1,4 +1,4 @@
-package components;
+package utils;
 
 public class Complex {
     private final double real; // Phần thực (Điện trở - R)

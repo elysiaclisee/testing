@@ -2,13 +2,14 @@ package view;
 
 import model.CircuitModel;
 import components.*;
+import utils.Wire;
 import javax.swing.*;
 import java.awt.*;
 
 @SuppressWarnings("serial")
 public class CircuitPanel extends JPanel {
     // UI Constants
-    public final Rectangle boardRect = new Rectangle(10, 150, 965, 500);
+    public final Rectangle boardRect = new Rectangle(20, 150, 1140, 500);
     public final ToolboxView toolboxView = new ToolboxView();
 
     // UI Components (Made public so Controller can access them like before)
@@ -16,10 +17,9 @@ public class CircuitPanel extends JPanel {
     public final JButton parallelBtn = new JButton("Parallel");
     public final JButton undoBtn = new JButton("Undo");
     public final JButton helpBtn = new JButton("Help");
-    public final JLabel instructionLabel = new JLabel("Select two components and click a connect button.");
+    public final JLabel instructionLabel = new JLabel("Click two components, then click Series or Parallel to connect.");
     public final JLabel circuitStatsLabel = new JLabel("Circuit: -");
     public final JLabel componentValuesLabel = new JLabel("Selection: None");
-    // THÊM: Khu vực chọn chế độ bóng đèn
     public final JRadioButton rbSeriesBulb = new JRadioButton("Circuit connects series to bulb", true); // Mặc định chọn
     public final JRadioButton rbParallelBulb = new JRadioButton("Circuit connects parallel to bulb");
     public final ButtonGroup modeGroup = new ButtonGroup();
@@ -95,7 +95,7 @@ public class CircuitPanel extends JPanel {
         }
 
         g2.setColor(Color.DARK_GRAY);
-        g2.drawString("Click toolbox to add. Drag to move. Select two & connect.", 10, boardRect.y - 6);
+        g2.drawString("Click toolbox to add. Drag to move. Click two components to select, then connect.", 20, boardRect.y - 6);
     }
     
 //If the window size is not the issue, it might be a Z-Order issue (the component sliding under the board). 

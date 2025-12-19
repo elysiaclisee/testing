@@ -1,8 +1,9 @@
-package components;
+package utils;
 
+import components.Components;
 import java.awt.*;
 
-public class Wire implements Cloneable {
+public class Wire {
     public enum Type { SERIES, PARALLEL }
     private Components a, b;
     private Type type;
@@ -31,13 +32,4 @@ public class Wire implements Cloneable {
     public Components getA() { return a; }
     public Components getB() { return b; }
     public Type getType() { return type; }
-
-    @Override
-    public Wire clone() {
-        try {
-            return (Wire) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new AssertionError();
-        }
-    }
 }

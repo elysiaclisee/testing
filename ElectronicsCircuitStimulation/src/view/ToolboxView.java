@@ -1,13 +1,14 @@
 package view;
 
-import controller.Toolbox.Tool; 
 import components.*;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import javax.swing.*;
 
 public class ToolboxView {
-    public static final int X = 10;
+    public enum Tool { POWER_SOURCE, BULB, RESISTOR, CAPACITOR, INDUCTOR }
+    
+    public static final int X = 20;
     public static final int Y = 10;
     public static final int WIDTH = 530;
     public static final int HEIGHT = 120;
@@ -97,8 +98,8 @@ public class ToolboxView {
             if (slots[i].contains(p)) {
                 switch (i) {
                     case 0 -> { return Tool.POWER_SOURCE; }
-                    case 1 -> { return Tool.BULB; }     // Swapped: Index 1 is now Bulb
-                    case 2 -> { return Tool.RESISTOR; } // Swapped: Index 2 is now Resistor
+                    case 1 -> { return Tool.BULB; }     
+                    case 2 -> { return Tool.RESISTOR; } 
                     case 3 -> { return Tool.CAPACITOR; }
                     case 4 -> { return Tool.INDUCTOR; }
                 }

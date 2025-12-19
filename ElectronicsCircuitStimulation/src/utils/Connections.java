@@ -1,11 +1,6 @@
-package components;
+package utils;
 
 public class Connections {
-
-    // Nối tiếp: Z_eq = Z1 + Z2
-    public static Complex series(Complex z1, Complex z2) {
-        return z1.add(z2);
-    }
 
     // Song song: Z_eq = (Z1 * Z2) / (Z1 + Z2)
     public static Complex parallel(Complex d, Complex e) {

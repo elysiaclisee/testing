@@ -1,5 +1,7 @@
 package components;
 
+import utils.Complex;
+import utils.FormatUtils;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 
@@ -19,8 +21,8 @@ public class PowerSource extends Components {
     public void draw(Graphics2D g2) {
         draw(g2, java.awt.Color.GREEN);
         g2.setFont(g2.getFont().deriveFont(Font.PLAIN, 12f));
-        String vLabel = formatDouble(voltage) + "V";
-        String fLabel = formatDouble(frequency) + "Hz";
+        String vLabel = FormatUtils.formatMetric(voltage, "V");
+        String fLabel = FormatUtils.formatMetric(frequency, "Hz");
         FontMetrics fm = g2.getFontMetrics();
         Rectangle2D vBounds = fm.getStringBounds(vLabel, g2);
         Rectangle2D fBounds = fm.getStringBounds(fLabel, g2);
@@ -33,30 +35,9 @@ public class PowerSource extends Components {
         g2.drawString(fLabel, fx, fy);
     }
 
-    private String formatDouble(double d) {
-        if (d == (long) d) {
-            return String.format("%d", (long) d);
-        } else {
-            return String.format("%.2f", d);
-        }
-    }
-
     @Override
     public double getResistance() {
         return 0;
-    }
-
-    public double getFrequency() {
-		return frequency;
-	}
-
-	@Override
-    public Rectangle getBounds() {
-        return new Rectangle(x - width / 2, y - height / 2, width, height);
-    }
-
-    public double getVoltage() {
-        return voltage;
     }
     
     @Override

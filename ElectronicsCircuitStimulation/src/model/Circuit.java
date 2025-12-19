@@ -32,12 +32,6 @@ public class Circuit {
         rebuildCircuit();
     }
 
-    public void setComponents(List<Components> components) {
-        this.components.clear();
-        this.components.addAll(components);
-        rebuildCircuit();
-    }
-
     public List<Components> getComponents() {
         return components;
     }
@@ -61,7 +55,7 @@ public class Circuit {
             int my = (c1.getPosition().y + c2.getPosition().y) / 2;
             
             // 3. Create the Composite Component (The Parallel Group)
-            CompositeComponent group = new CompositeComponent("Group", mx, my, mode, parts);
+            CompositeComponent group = new CompositeComponent("Group_" + System.currentTimeMillis(), mx, my, mode, parts);
             
             // 4. CRITICAL: Remove the original separate parts from the board list
             components.remove(c1);
@@ -102,17 +96,16 @@ public class Circuit {
         }
     }
 
-    private void rebuildCircuit() {
-        if (components.size() < 2) {
-            root = null;
-            return;
+    public void rebuildCircuit() {
+        this.root = null; // <-- THÊM DÒNG NÀY: Xóa sạch cây logic cũ để không để lại dấu vết
+        
+        if (components.size() < 2) return;
+
+        // Luôn tạo mới root dựa trên danh sách linh kiện hiện có
+        root = new CompositeComponent("C_root", 0, 0);
+        for(Components c : components) {
+            root.add(c);
         }
-        if (root == null) {
-            root = new CompositeComponent("C_root", 0, 0);
-            for(Components c : components) {
-                root.add(c);
-            }
-            root.setMode(CompositeComponent.Mode.SERIES);
-        }
+        root.setMode(CompositeComponent.Mode.SERIES);
     }
 }
