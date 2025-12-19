@@ -8,19 +8,22 @@ import java.util.List;
 public class Circuit {
     private final List<Components> components = new ArrayList<>();
     private CompositeComponent root;
-    
-    // --- NEW: Global Power Settings ---
+    private int groupCounter = 1;
     private double sourceVoltage = 0.0;
-    private double sourceFrequency = 60.0; // Default to 60Hz
+    private double sourceFrequency = 0.0;
 
     public void setPowerSupply(double voltage, double frequency) {
         this.sourceVoltage = voltage;
         this.sourceFrequency = frequency;
     }
 
-    public double getSourceVoltage() { return sourceVoltage; }
-    public double getSourceFrequency() { return sourceFrequency; }
-    // ----------------------------------
+    public double getSourceVoltage() { 
+    	return sourceVoltage; 
+    }
+    
+    public double getSourceFrequency() { 
+    	return sourceFrequency; 
+    }
 
     public void addComponent(Components component) {
         components.add(component);
@@ -40,8 +43,6 @@ public class Circuit {
         return root;
     }
 
- // Inside model/Circuit.java
-
     public void connect(Components c1, Components c2, CompositeComponent.Mode mode) {
         // --- CASE 1: PARALLEL (Create a Group Box) ---
         if (mode == CompositeComponent.Mode.PARALLEL) {
@@ -55,7 +56,8 @@ public class Circuit {
             int my = (c1.getPosition().y + c2.getPosition().y) / 2;
             
             // 3. Create the Composite Component (The Parallel Group)
-            CompositeComponent group = new CompositeComponent("Group", mx, my, mode, parts);
+            String uniqueId = "Group_" + (groupCounter++); 
+            CompositeComponent group = new CompositeComponent(uniqueId, mx, my, mode, parts);
             
             // 4. CRITICAL: Remove the original separate parts from the board list
             components.remove(c1);

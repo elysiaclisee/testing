@@ -8,11 +8,8 @@ import java.awt.*;
 
 @SuppressWarnings("serial")
 public class CircuitPanel extends JPanel {
-    // UI Constants
     public final Rectangle boardRect = new Rectangle(20, 150, 1140, 500);
     public final ToolboxView toolboxView = new ToolboxView();
-
-    // UI Components (Made public so Controller can access them like before)
     public final JButton seriesBtn = new JButton("Series");
     public final JButton parallelBtn = new JButton("Parallel");
     public final JButton undoBtn = new JButton("Undo");
@@ -30,7 +27,6 @@ public class CircuitPanel extends JPanel {
         setLayout(null);
         setBackground(Color.WHITE);
 
-        // UI Setup logic moved from constructor
         seriesBtn.setBounds(560, 30, 90, 28);
         parallelBtn.setBounds(650, 30, 90, 28);
         undoBtn.setBounds(740, 30, 90, 28);
@@ -79,10 +75,9 @@ public class CircuitPanel extends JPanel {
         g2.setColor(Color.GRAY);
         g2.draw(boardRect);
         g2.setFont(g2.getFont().deriveFont(12f));
-        g2.setColor(Color.DARK_GRAY);
+        g2.setColor(Color.BLACK);
         g2.drawString("Circuit Board", boardRect.x + 8, boardRect.y + 16);
 
-        // Accessing data via model
         for (Wire w : model.getWires()) w.draw(g2);
 
         g2.setStroke(originalStroke);
@@ -94,16 +89,9 @@ public class CircuitPanel extends JPanel {
             g2.setColor(originalColor);
         }
 
-        g2.setColor(Color.DARK_GRAY);
+        g2.setColor(Color.BLACK);
         g2.drawString("Click toolbox to add. Drag to move. Click two components to select, then connect.", 20, boardRect.y - 6);
     }
-    
-//If the window size is not the issue, it might be a Z-Order issue (the component sliding under the board). 
-//This happens if the component is drawn before the board background.
-//Check your CircuitPanel.java -> paintComponent method. The order MUST be:
-//Draw Board Background (First)
-//Draw Grid/Wires
-//Draw Components (Last)
     
     private void showHelpWindow() {
         Window parentWindow = SwingUtilities.getWindowAncestor(this);
@@ -115,29 +103,26 @@ public class CircuitPanel extends JPanel {
         JTextArea helpText = new JTextArea();
         helpText.setText(getHelpContent()); // Helper method for the text
         helpText.setEditable(false);        // User cannot edit
-        helpText.setLineWrap(true);         // Wrap long lines
-        helpText.setWrapStyleWord(true);    // Wrap at word boundaries
+        helpText.setLineWrap(true);         
+        helpText.setWrapStyleWord(true);    
         helpText.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        helpText.setMargin(new Insets(10, 10, 10, 10)); // Padding
+        helpText.setMargin(new Insets(10, 10, 10, 10)); 
 
         JScrollPane scrollPane = new JScrollPane(helpText);
-        // Ensure scrollbar always shows if needed
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 
         helpDialog.add(scrollPane);
 
-        // Match the size of the parent app
         if (parentWindow != null) {
             helpDialog.setSize(parentWindow.getSize());
-            helpDialog.setLocationRelativeTo(parentWindow); // Center it
+            helpDialog.setLocationRelativeTo(parentWindow); 
         } else {
-            helpDialog.setSize(800, 600); // Fallback size
+            helpDialog.setSize(1195, 710); 
         }
 
         helpDialog.setVisible(true);
     }
-
-    // Put your long text here to keep code clean
+    
     private String getHelpContent() {
         return """
 Welcome to our Circuit Simulator!

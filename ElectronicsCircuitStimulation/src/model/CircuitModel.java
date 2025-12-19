@@ -1,13 +1,13 @@
 package model;
 
 import components.*;
-import utils.Wire;
+import utils.*;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CircuitModel {
-    private static final int MAX_UNDO_STACK_SIZE = 50; // Limit undo history to prevent memory issues
+    private static final int MAX_UNDO_STACK_SIZE = 20; // Limit undo history to prevent memory issues
     
     public Circuit circuit;
     public List<Wire> wires;
@@ -18,6 +18,8 @@ public class CircuitModel {
     public Components secondSelected = null;
     public BoardTerminal termLeft;
     public BoardTerminal termRight;
+	public enum ConnectionMode {SERIES_WITH_BULB, PARALLEL_WITH_BULB}
+	private String simulationStatus = "Circuit: -";
 
     public CircuitModel() {
         this.circuit = new Circuit();
@@ -30,9 +32,98 @@ public class CircuitModel {
         circuit.addComponent(termRight);
     }
 
-    public Circuit getCircuit() { return circuit; }
-    public List<Wire> getWires() { return wires; }
+    public Circuit getCircuit() { 
+    	return circuit; 
+    }
+    
+    public List<Wire> getWires() { 
+    	return wires; 
+    }
+    
+    public String getSimulationStatus() { 
+		return simulationStatus; 
+	}
+    
+    public void updatePhysics(ConnectionMode mode) {
+        double sourceVoltage = circuit.getSourceVoltage();
+        double sourceFrequency = circuit.getSourceFrequency();
+        
+        // Reset if invalid source
+        if (sourceVoltage <= 0) {
+            simulationStatus = "Configure Power Source first (click battery icon)";
+            return;
+        }
 
+        CompositeComponent root = circuit.getRoot();
+        if (root == null) {
+            simulationStatus = "Circuit incomplete";
+            return;
+        }
+
+        // --- EXACT CALCULATION LOGIC PRESERVED ---
+        Complex zUser = root.getImpedance(sourceFrequency);
+        Complex zBulb = new Complex(Bulb.R_BULB, 0);
+        
+        double totalZ, totalI, iBulb, pBulb;
+        
+        if (mode == ConnectionMode.SERIES_WITH_BULB) {
+            // Nối tiếp: I_bulb = I_total
+            Complex zTotalComplex = zUser.add(zBulb);
+            totalZ = zTotalComplex.getMagnitude();
+            totalI = (totalZ > 0) ? sourceVoltage / totalZ : 0.0;
+            iBulb = totalI;
+            pBulb = iBulb * iBulb * Bulb.R_BULB;
+        } else {
+            // Song song: V_bulb = V_source
+            Complex zTotalComplex = Connections.parallel(zUser, zBulb);
+            totalZ = zTotalComplex.getMagnitude();
+            totalI = (totalZ > 0) ? sourceVoltage / totalZ : 0.0;
+            iBulb = sourceVoltage / zBulb.getMagnitude();
+            pBulb = iBulb * iBulb * Bulb.R_BULB;
+        }
+        
+        // STATUS LOGIC
+        double powerRatio = pBulb / Bulb.P_RATED;
+        String status;
+        
+        if (powerRatio > 1.5) {
+            status = "BURNT";
+        } else if (powerRatio >= 0.8) {
+            status = "BRIGHT";
+        } else if (powerRatio >= 0.2) {
+            status = "WEAK";
+        } else {
+            status = "OFF";
+        }
+        
+        // UPDATE COMPONENT STATES
+        root.setSimulationState(sourceVoltage, totalI, sourceFrequency);
+        
+        for (Components c : circuit.getComponents()) {
+            if (c instanceof Bulb) {
+                Bulb bulb = (Bulb) c;
+                bulb.setLighted(powerRatio >= 0.2 && powerRatio <= 1.5);
+                bulb.setSimulationState(iBulb * Bulb.R_BULB, iBulb, sourceFrequency);
+                break;
+            }
+        }
+        
+        // FORMAT OUTPUT STRING
+        String formattedStatus = status;
+        if (status.equals("BURNT")) {
+            formattedStatus = "<font color='red'><b>BURNT</b></font>";
+        } else if (status.equals("BRIGHT")) {
+            formattedStatus = "<font color='green'><b>BRIGHT</b></font>";
+        } else if (status.equals("WEAK")) {
+            formattedStatus = "<font color='orange'><b>WEAK</b></font>";
+        } else if (status.equals("OFF")) {
+            formattedStatus = "<font color='gray'><b>OFF</b></font>";
+        }
+        
+        this.simulationStatus = String.format("<html>V: %.2fV | Z: %.2fΩ | I: %.2fA | Bulb: %.2fW/%.0fW [%s]</html>",
+                sourceVoltage, totalZ, totalI, pBulb, Bulb.P_RATED, formattedStatus);
+    }
+    
     public void addComponent(Components c) {
         circuit.addComponent(c);
         addActionToUndoStack(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, c));
@@ -51,18 +142,13 @@ public class CircuitModel {
         circuit.connect(c1, c2, mode);
     }
     
-    /**
-     * Adds an action to the undo stack with automatic size limit enforcement.
-     * If the stack exceeds MAX_UNDO_STACK_SIZE, the oldest action is removed.
-     */
     public void addActionToUndoStack(CircuitAction action) {
         undoStack.add(action);
-        // Enforce size limit by removing oldest actions
         if (undoStack.size() > MAX_UNDO_STACK_SIZE) {
             undoStack.remove(0); // Remove the oldest action
         }
     }
-
+    
     // --- Command Pattern Undo Logic ---
     // Instead of replacing the entire board, we reverse the last action
     public void undo() {
@@ -102,5 +188,14 @@ public class CircuitModel {
                 wires.add(action.getConnection());
                 break;
         }
+    }
+    
+    public Components componentAt(Point p) {
+        List<Components> components = circuit.getComponents();
+        for (int i = components.size() - 1; i >= 0; i--) {
+            Components c = components.get(i);
+            if (c.contains(p)) return c;
+        }
+        return null;
     }
 }

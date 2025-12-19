@@ -13,9 +13,7 @@ public class ToolboxView {
     public static final int WIDTH = 530;
     public static final int HEIGHT = 120;
     private static final int HEADER_HEIGHT = 30;
-
     private final Rectangle[] slots = new Rectangle[5];
-
     private PowerSource sampleSource;
     private final Resistor sampleResistor;
     private final Bulb sampleBulb;
@@ -36,7 +34,7 @@ public class ToolboxView {
         }
 
         // Initialize Dummies
-        sampleSource = new PowerSource("Display", 0, 0, 220.0, 50.0);
+        sampleSource = new PowerSource("Display", 0, 0, 0.0, 0.0);
         sampleResistor = new Resistor("Display", 0, 0, 0); 
         sampleBulb = new Bulb("Display", 0, 0);
         sampleCapacitor = new Capacitor("Display", 0, 0, 0);
@@ -64,8 +62,6 @@ public class ToolboxView {
         g2.setFont(new Font("SansSerif", Font.BOLD, 14));
         g2.drawString("Toolbox", X + 10, Y + 20);
 
-        // --- DRAW SLOTS (Swapped Bulb and Resistor positions) ---
-        // Slot 0: Power Source
         drawComponentInSlot(g2, slots[0], sampleSource, "Power Source");
         drawComponentInSlot(g2, slots[1], sampleBulb, "Bulb");
         drawComponentInSlot(g2, slots[2], sampleResistor, "Resistor");

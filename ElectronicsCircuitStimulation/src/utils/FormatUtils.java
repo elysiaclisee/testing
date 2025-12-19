@@ -1,6 +1,7 @@
 package utils;
 
 import java.awt.*;
+import components.*;
 
 public class FormatUtils {
     public static String formatMetric(double value, String unit) {
@@ -29,5 +30,25 @@ public class FormatUtils {
         int x = rect.x + (rect.width - fm.stringWidth(text)) / 2;
         int y = rect.y + (rect.height - fm.getHeight()) / 2 + fm.getAscent();
         g2.drawString(text, x, y);
+    }
+    
+    public static String formatComponentInfo(Components c, double freq) {
+        if (c == null) return "None";
+        if (c instanceof Resistor) {
+            return String.format("R: %s", formatMetric(c.getResistance(), "Ω"));
+        }
+        if (c instanceof Capacitor) {
+            double z = c.getImpedance(freq).getMagnitude();
+            return String.format("C: %s (Z: %s)", 
+                formatMetric(((Capacitor) c).getCapacitance(), "F"), 
+                formatMetric(z, "Ω"));
+        }
+        if (c instanceof Inductor) {
+            double z = c.getImpedance(freq).getMagnitude();
+            return String.format("L: %s (Z: %s)", 
+                formatMetric(((Inductor) c).getInductance(), "H"), 
+                formatMetric(z, "Ω"));
+        }
+        return c.getId();
     }
 }
