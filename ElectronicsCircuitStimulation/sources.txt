@@ -7,12 +7,9 @@ C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\Components.j
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\CompositeComponent.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\Connections.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\Inductor.java
-C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\ParallelConnections.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\PowerSource.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\Resistor.java
-C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\SeriesConnection.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\components\Wire.java
-C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\controller\CircuitAction.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\controller\CircuitController.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\controller\Toolbox.java
 C:\Users\Admin\Desktop\ElectronicsCircuitStimulation\src\main\Main.java

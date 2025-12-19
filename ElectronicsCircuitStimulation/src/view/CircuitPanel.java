@@ -2,6 +2,7 @@ package view;
 
 import model.CircuitModel;
 import components.*;
+import utils.Wire;
 import javax.swing.*;
 import java.awt.*;
 
@@ -59,7 +60,7 @@ public class CircuitPanel extends JPanel {
         add(instructionLabel);
         add(circuitStatsLabel);
         add(componentValuesLabel);
-        helpBtn.addActionListener(e -> showHelpWindow());
+        helpBtn.addActionListener(_ -> showHelpWindow());
     }
     
     @Override

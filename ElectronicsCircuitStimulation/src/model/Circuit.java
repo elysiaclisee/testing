@@ -32,12 +32,6 @@ public class Circuit {
         rebuildCircuit();
     }
 
-    public void setComponents(List<Components> components) {
-        this.components.clear();
-        this.components.addAll(components);
-        rebuildCircuit();
-    }
-
     public List<Components> getComponents() {
         return components;
     }

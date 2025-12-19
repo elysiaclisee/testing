@@ -1,12 +1,13 @@
 package view;
 
-import controller.Toolbox.Tool; 
 import components.*;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 import javax.swing.*;
 
 public class ToolboxView {
+    public enum Tool { POWER_SOURCE, BULB, RESISTOR, CAPACITOR, INDUCTOR }
+    
     public static final int X = 20;
     public static final int Y = 10;
     public static final int WIDTH = 530;

@@ -1,7 +1,7 @@
 package model;
 
 import components.Components;
-import components.Wire;
+import utils.Wire;
 
 /**
  * Represents a single action in the circuit for undo functionality.

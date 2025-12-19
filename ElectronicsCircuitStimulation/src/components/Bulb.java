@@ -1,14 +1,15 @@
 package components;
 
+import utils.Complex;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
 
 public class Bulb extends Components {
     // --- CÁC ĐẠI LƯỢNG CỐ ĐỊNH (RATED VALUES) ---
-    private static final double V_RATED = 220.0; 
-    private static final double P_RATED = 50.0;  
+    public static final double V_RATED = 220.0; 
+    public static final double P_RATED = 50.0;  
     // R = V^2 / P = 220^2 / 50 = 968 Ω
-    private static final double R_BULB = (V_RATED * V_RATED) / P_RATED;
+    public static final double R_BULB = (V_RATED * V_RATED) / P_RATED;
 
     private boolean isLighted = false;
 
@@ -21,10 +22,6 @@ public class Bulb extends Components {
     @Override
     public Complex getImpedance(double frequency) {
         return new Complex(R_BULB, 0);
-    }
-
-    public double getRatedPower() {
-        return P_RATED;
     }
 
     public void setLighted(boolean lighted) {
@@ -59,10 +56,7 @@ public class Bulb extends Components {
         
         g2.drawString(vLabel, vx, vy);
         g2.drawString(pLabel, px, py);
-    }
-
-    @Override
-    public Rectangle getBounds() {
-        return new Rectangle(x - width / 2, y - height / 2, width, height);
+        
+        drawSelection(g2);
     }
 }

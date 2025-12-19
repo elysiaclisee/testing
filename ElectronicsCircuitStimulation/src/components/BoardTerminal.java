@@ -1,5 +1,6 @@
 package components;
 
+import utils.Complex;
 import java.awt.*;
 
 public class BoardTerminal extends Components {

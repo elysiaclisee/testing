@@ -1,12 +1,14 @@
 package model;
 
 import components.*;
-
+import utils.Wire;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
 
 public class CircuitModel {
+    private static final int MAX_UNDO_STACK_SIZE = 50; // Limit undo history to prevent memory issues
+    
     public Circuit circuit;
     public List<Wire> wires;
     public final List<CircuitAction> undoStack;
@@ -33,25 +35,32 @@ public class CircuitModel {
 
     public void addComponent(Components c) {
         circuit.addComponent(c);
-        undoStack.add(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, c));
+        addActionToUndoStack(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, c));
     }
 
     public void removeComponent(Components c) {
         circuit.removeComponent(c);
-        undoStack.add(new CircuitAction(CircuitAction.ActionType.DELETE_COMPONENT, c));
+        addActionToUndoStack(new CircuitAction(CircuitAction.ActionType.DELETE_COMPONENT, c));
     }
 
     public void addWire(Components c1, Components c2, Wire.Type type) {
         Wire wire = new Wire(c1, c2, type);
         wires.add(wire);
-        undoStack.add(new CircuitAction(CircuitAction.ActionType.ADD_CONNECTION, wire));
+        addActionToUndoStack(new CircuitAction(CircuitAction.ActionType.ADD_CONNECTION, wire));
         CompositeComponent.Mode mode = (type == Wire.Type.SERIES) ? CompositeComponent.Mode.SERIES : CompositeComponent.Mode.PARALLEL;
         circuit.connect(c1, c2, mode);
     }
-
-    public void removeWire(Wire wire) {
-        wires.remove(wire);
-        undoStack.add(new CircuitAction(CircuitAction.ActionType.DELETE_CONNECTION, wire));
+    
+    /**
+     * Adds an action to the undo stack with automatic size limit enforcement.
+     * If the stack exceeds MAX_UNDO_STACK_SIZE, the oldest action is removed.
+     */
+    public void addActionToUndoStack(CircuitAction action) {
+        undoStack.add(action);
+        // Enforce size limit by removing oldest actions
+        if (undoStack.size() > MAX_UNDO_STACK_SIZE) {
+            undoStack.remove(0); // Remove the oldest action
+        }
     }
 
     // --- Command Pattern Undo Logic ---

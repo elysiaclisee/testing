@@ -1,11 +1,12 @@
 package components;
 
+import utils.Complex;
 import java.awt.*;
 
 /**
  * Base class for a component placed on the board.
  */
-public abstract class Components implements Cloneable {
+public abstract class Components {
     protected int x, y; // center position
     protected int width = 60;
     protected int height = 30;
@@ -21,14 +22,6 @@ public abstract class Components implements Cloneable {
         this.y = y;
     }
     public abstract Complex getImpedance(double frequency);
-    
-    public double getVoltageDrop() { 
-    	return voltageDrop; 
-    }
-    
-    public double getCurrentFlow() {
-    	return currentFlow; 
-    }
 
     public Point getPosition() {
         return new Point(x, y);
@@ -36,7 +29,13 @@ public abstract class Components implements Cloneable {
 
     public abstract double getResistance();
 
-    public abstract Rectangle getBounds();
+    /**
+     * Default implementation returns a rectangle centered at (x, y) with the component's width and height.
+     * Override this method if your component needs custom bounds calculation.
+     */
+    public Rectangle getBounds() {
+        return new Rectangle(x - width / 2, y - height / 2, width, height);
+    }
     
     public String getId() {
         return id;
@@ -97,15 +96,6 @@ public abstract class Components implements Cloneable {
         drawSelection(g2);
     }
 
-    @Override
-    public Components clone() {
-        try {
-            return (Components) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new AssertionError(); 
-        }
-    }
- // Inside abstract class Components
     public Point getConnectorPoint(Components other) {
         Point p1 = this.getPosition();
         Point p2 = other.getPosition();

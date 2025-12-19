@@ -3,26 +3,34 @@ package controller;
 import model.CircuitAction;
 import model.CircuitModel;
 import view.CircuitPanel;
+import view.ToolboxView.Tool;
 import components.*;
+import utils.Complex;
+import utils.Connections;
+import utils.Wire;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.List;
 
 public class CircuitController {
+	public enum ConnectionMode {
+	    SERIES_WITH_BULB,
+	    PARALLEL_WITH_BULB
+	}
     private final CircuitModel model;
     private final CircuitPanel view;
-    private CircuitManager.ConnectionMode gameMode = CircuitManager.ConnectionMode.SERIES_WITH_BULB;
+    private ConnectionMode gameMode = ConnectionMode.SERIES_WITH_BULB;
     
     public CircuitController(CircuitModel model, CircuitPanel view) {
         this.model = model;
         this.view = view;
         
      // THÊM: Listener cho việc đổi chế độ Game
-        ActionListener modeListener = e -> {
+        ActionListener modeListener = _ -> {
             if (view.rbSeriesBulb.isSelected()) {
-                this.gameMode = CircuitManager.ConnectionMode.SERIES_WITH_BULB;
+                this.gameMode = ConnectionMode.SERIES_WITH_BULB;
             } else {
-                this.gameMode = CircuitManager.ConnectionMode.PARALLEL_WITH_BULB;
+                this.gameMode = ConnectionMode.PARALLEL_WITH_BULB;
             }
             updateCircuit(); 
         };
@@ -36,9 +44,9 @@ public class CircuitController {
         view.repaint();
 
         // Listeners
-        view.seriesBtn.addActionListener(e -> connectSelected(CompositeComponent.Mode.SERIES));
-        view.parallelBtn.addActionListener(e -> connectSelected(CompositeComponent.Mode.PARALLEL));
-        view.undoBtn.addActionListener(e -> undo());
+        view.seriesBtn.addActionListener(_ -> connectSelected(CompositeComponent.Mode.SERIES));
+        view.parallelBtn.addActionListener(_ -> connectSelected(CompositeComponent.Mode.PARALLEL));
+        view.undoBtn.addActionListener(_ -> undo());
 
         MouseAdapter ma = new MouseAdapter() {
             @Override
@@ -46,10 +54,10 @@ public class CircuitController {
                 Point p = e.getPoint();
                 view.putClientProperty("pressPoint", p);
                 
-                Toolbox.Tool t = view.toolboxView.hitTool(p);
+                Tool t = view.toolboxView.hitTool(p);
 
                 // --- CASE 1: Power Source Tool (Updates Global Settings) ---
-                if (t == Toolbox.Tool.POWER_SOURCE) {
+                if (t == Tool.POWER_SOURCE) {
                     double[] vals = view.toolboxView.promptForPowerSource();
                     if (vals == null) return; 
 
@@ -237,34 +245,28 @@ public class CircuitController {
         	    view.instructionLabel.setText("Board terminals only support SERIES connections.");
         	    return;
         	}
-
-            if (isTerm1 && getConnectionCount(c1) >= 1) {
-                view.instructionLabel.setText("Terminal " + c1.getId() + " is already occupied.");
-                return;
-            }
-            if (isTerm2 && getConnectionCount(c2) >= 1) {
-                view.instructionLabel.setText("Terminal " + c2.getId() + " is already occupied.");
-                return;
-            }
-            
-            if (!isTerm1 && getConnectionCount(c1) >= 2) {
-                view.instructionLabel.setText("Component " + c1.getId() + " is full (max 2).");
-                return;
-            }
-            if (!isTerm2 && getConnectionCount(c2) >= 2) {
-                view.instructionLabel.setText("Component " + c2.getId() + " is full (max 2).");
-                return;
-            }
-
-        } else {
-            if (getConnectionCount(c1) >= 2) {
-                view.instructionLabel.setText("Component " + c1.getId() + " full.");
-                return;
-            }
-            if (getConnectionCount(c2) >= 2) {
-                view.instructionLabel.setText("Component " + c2.getId() + " full.");
-                return;
-            }
+        }
+        
+        if (isTerm1 && getConnectionCount(c1) >= 1) {
+            view.instructionLabel.setText("Terminal " + c1.getId() + " is already occupied.");
+            return;
+        }
+        if (isTerm2 && getConnectionCount(c2) >= 1) {
+            view.instructionLabel.setText("Terminal " + c2.getId() + " is already occupied.");
+            return;
+        }
+        
+        // Validate connection capacity for both components
+        String c1Error = validateConnectionCapacity(c1);
+        if (c1Error != null) {
+            view.instructionLabel.setText(c1Error);
+            return;
+        }
+        
+        String c2Error = validateConnectionCapacity(c2);
+        if (c2Error != null) {
+            view.instructionLabel.setText(c2Error);
+            return;
         }
         
         if (mode == CompositeComponent.Mode.PARALLEL) {
@@ -328,7 +330,7 @@ public class CircuitController {
             
             // Record the action as adding the new composite component
             if (newGroup != null) {
-                model.undoStack.add(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, newGroup));
+                model.addActionToUndoStack(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, newGroup));
             }
             view.instructionLabel.setText("Parallel group created.");
         } else {
@@ -382,11 +384,7 @@ public class CircuitController {
         if (leftConnections == 0 || rightConnections == 0) {
             view.circuitStatsLabel.setText("Circuit incomplete: Connect both terminals");
             // Still show selected component details even when circuit is incomplete
-            if (model.firstSelected != null) {
-                view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
-            } else {
-                view.componentValuesLabel.setText("Selected: None");
-            }
+            updateComponentDetailsLabel(sourceFrequency);
             // Reset all component states
             for (Components c : model.circuit.getComponents()) {
                 if (!(c instanceof BoardTerminal)) {
@@ -401,11 +399,7 @@ public class CircuitController {
         if (sourceVoltage <= 0) {
             view.circuitStatsLabel.setText("Configure Power Source first (click battery icon)");
             // Still show selected component details
-            if (model.firstSelected != null) {
-                view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
-            } else {
-                view.componentValuesLabel.setText("Selected: None");
-            }
+            updateComponentDetailsLabel(sourceFrequency);
             view.repaint();
             return;
         }
@@ -415,11 +409,7 @@ public class CircuitController {
         if (root == null) {
             view.circuitStatsLabel.setText("Circuit incomplete");
             // Still show selected component details
-            if (model.firstSelected != null) {
-                view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
-            } else {
-                view.componentValuesLabel.setText("Selected: None");
-            }
+            updateComponentDetailsLabel(sourceFrequency);
             view.repaint();
             return;
         }
@@ -427,32 +417,29 @@ public class CircuitController {
         // 5. TÍNH TOÁN CÔNG SUẤT DỰA TRÊN GAMEMODE (Virtual Bulb)
         Complex zUser = root.getImpedance(sourceFrequency);
         
-        // Virtual bulb properties (220V, 50W -> R = 968Ω)
-        double V_RATED = 220.0;
-        double P_RATED = 50.0;
-        double R_BULB = (V_RATED * V_RATED) / P_RATED; // 968Ω
-        Complex zBulb = new Complex(R_BULB, 0);
+        // Use bulb properties from Bulb class (220V, 50W -> R = 968Ω)
+        Complex zBulb = new Complex(Bulb.R_BULB, 0);
         
         double totalZ, totalI, iBulb, pBulb;
         
-        if (gameMode == CircuitManager.ConnectionMode.SERIES_WITH_BULB) {
+        if (gameMode == ConnectionMode.SERIES_WITH_BULB) {
             // Nối tiếp: I_bulb = I_total
             Complex zTotalComplex = zUser.add(zBulb);
             totalZ = zTotalComplex.getMagnitude();
             totalI = (totalZ > 0) ? sourceVoltage / totalZ : 0.0;
             iBulb = totalI;
-            pBulb = iBulb * iBulb * R_BULB;
+            pBulb = iBulb * iBulb * Bulb.R_BULB;
         } else {
             // Song song: V_bulb = V_source
             Complex zTotalComplex = Connections.parallel(zUser, zBulb);
             totalZ = zTotalComplex.getMagnitude();
             totalI = (totalZ > 0) ? sourceVoltage / totalZ : 0.0;
             iBulb = sourceVoltage / zBulb.getMagnitude();
-            pBulb = iBulb * iBulb * R_BULB;
+            pBulb = iBulb * iBulb * Bulb.R_BULB;
         }
         
         // 6. XÉT TRẠNG THÁI SÁNG DỰA TRÊN SO SÁNH VỚI P_RATED
-        double powerRatio = pBulb / P_RATED;
+        double powerRatio = pBulb / Bulb.P_RATED;
         String status;
         
         if (powerRatio > 1.5) {
@@ -473,7 +460,7 @@ public class CircuitController {
             if (c instanceof Bulb) {
                 Bulb bulb = (Bulb) c;
                 bulb.setLighted(powerRatio >= 0.2 && powerRatio <= 1.5);
-                bulb.setSimulationState(iBulb * R_BULB, iBulb, sourceFrequency);
+                bulb.setSimulationState(iBulb * Bulb.R_BULB, iBulb, sourceFrequency);
                 break;
             }
         }
@@ -491,14 +478,10 @@ public class CircuitController {
         }
         
         view.circuitStatsLabel.setText(String.format("<html>V: %.2fV | Z: %.2fΩ | I: %.2fA | Bulb: %.2fW/%.0fW [%s]</html>",
-                sourceVoltage, totalZ, totalI, pBulb, P_RATED, formattedStatus));
+                sourceVoltage, totalZ, totalI, pBulb, Bulb.P_RATED, formattedStatus));
         
         // 8. Update component details when selected
-        if (model.firstSelected != null) {
-            view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
-        } else {
-            view.componentValuesLabel.setText("Selected: None");
-        }
+        updateComponentDetailsLabel(sourceFrequency);
     }
 
     private String getComponentDetails(Components c, double freq) {
@@ -513,6 +496,24 @@ public class CircuitController {
         model.firstSelected = null;
         model.secondSelected = null;
     }
+    
+    /**
+     * Check if a component can accept more connections.
+     * Returns error message if full, null if available.
+     */
+    private String validateConnectionCapacity(Components c) {
+        int maxConnections = (c instanceof BoardTerminal) ? 1 : 2;
+        int currentConnections = getConnectionCount(c);
+        
+        if (currentConnections >= maxConnections) {
+            if (c instanceof BoardTerminal) {
+                return "Terminal " + c.getId() + " is already occupied.";
+            } else {
+                return "Component " + c.getId() + " is full (max 2).";
+            }
+        }
+        return null;
+    }
 
     private Components componentAt(Point p) {
         List<Components> components = model.circuit.getComponents();
@@ -521,6 +522,18 @@ public class CircuitController {
             if (c.contains(p)) return c;
         }
         return null;
+    }
+    
+    /**
+     * Update the component details label based on current selection.
+     * Centralizes the update logic to follow DRY principle.
+     */
+    private void updateComponentDetailsLabel(double sourceFrequency) {
+        if (model.firstSelected != null) {
+            view.componentValuesLabel.setText("Selected: " + getComponentDetails(model.firstSelected, sourceFrequency));
+        } else {
+            view.componentValuesLabel.setText("Selected: None");
+        }
     }
     
 private int getConnectionCountOnSide(CompositeComponent parallelBox, Components otherComponent) {
