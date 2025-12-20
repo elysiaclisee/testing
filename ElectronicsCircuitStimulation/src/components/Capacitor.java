@@ -12,10 +12,6 @@ public class Capacitor extends Components {
         this.capacitance = capacitance;
     }
 
-    public Capacitor(String id, int x, int y) {
-        this(id, x, y, 1e-6);
-    }
-
     @Override
     public Complex getImpedance(double frequency) {
         // ZC = -1 / (2 * pi * f * C) (Phần ảo âm)
@@ -38,8 +34,9 @@ public class Capacitor extends Components {
     public double getCapacitance() {
         return capacitance;
     }
-    @Override
-    public double getResistance() {
-        return 0;
-    }
+
+	@Override
+	public double getResistance() {
+		return 0;
+	}
 }

@@ -12,8 +12,6 @@ public class CircuitModel {
     public Circuit circuit;
     public List<Wire> wires;
     public final List<CircuitAction> undoStack;
-    public Components dragging = null;
-    public Point dragOffset = null;
     public Components firstSelected = null;
     public Components secondSelected = null;
     public BoardTerminal termLeft;

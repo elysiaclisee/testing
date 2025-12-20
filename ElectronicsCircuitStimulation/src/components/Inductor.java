@@ -10,7 +10,6 @@ public class Inductor extends Components {
     public Inductor(String id, int x, int y, double inductance) {
         super(id, x, y);
         this.inductance = inductance;
-        this.resistance = 0.1; 
     }
 
     public double getInductance() {
@@ -27,7 +26,7 @@ public class Inductor extends Components {
 
     @Override
     public double getResistance() {
-        return resistance;
+        return 0;
     }
     
     @Override

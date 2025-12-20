@@ -12,7 +12,6 @@ public abstract class Components {
     protected int height = 30;
     protected boolean selected = false;
     protected String id;
-    protected double resistance;
     protected double voltageDrop = 0.0;
     protected double currentFlow = 0.0;
 
@@ -29,6 +28,14 @@ public abstract class Components {
 
     public abstract double getResistance();
 
+    public double getVoltageDrop() {
+        return voltageDrop;
+    }
+
+    public double getCurrentFlow() {
+        return currentFlow;
+    }
+    
     /**
      * Default implementation returns a rectangle centered at (x, y) with the component's width and height.
      * Override this method if your component needs custom bounds calculation.

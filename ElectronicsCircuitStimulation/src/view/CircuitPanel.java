@@ -133,9 +133,10 @@ Before you start, here are some key notes you must read:
 Design your circuit freely, then connect 2 last components on 2 end of your circuit each to a terminal on the board. That's how we connect to power source.
 This ensures our circuit is closed.  	                      
 - Dragging components to borders of the circuit board may make them inaccessible. Please keep components within the visible area. 
-- If you want to connect 2 components, select the first one, then hit CTRL and select the second one. Then click connection buttons to connect them.
 - For simplicity, right now only 1 bulb is supported, and there are 2 options: series or parallel connection to the whole circuit on board.
 Each connection option will have a state update for you to check, along with displayed values.
+- Parallel connections right now only support 1 component on each branch, and you should finish building the parallel connections before connecting in series to others.
+- Complex circuit behaviors are not modeled in this.
 
 Thank you for understanding these limitations as we work to improve the simulator in future versions!
                 """;

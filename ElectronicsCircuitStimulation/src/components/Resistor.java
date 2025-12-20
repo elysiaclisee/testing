@@ -5,15 +5,11 @@ import utils.FormatUtils;
 import java.awt.*;
 
 public class Resistor extends Components {
-    private double resistance; // ohms
-
+    private double resistance; 
+    
     public Resistor(String id, int x, int y, double resistance) {
         super(id, x, y);
         this.resistance = resistance;
-    }
-
-    public Resistor(String id, int x, int y) {
-        this(id, x, y, 0.00);
     }
 
     @Override

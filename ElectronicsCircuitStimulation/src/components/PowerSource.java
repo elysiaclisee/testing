@@ -4,7 +4,7 @@ import utils.Complex;
 import utils.FormatUtils;
 import java.awt.*;
 import java.awt.geom.Rectangle2D;
-
+//icon on toolbar only, for future development and extension
 public class PowerSource extends Components {
     private double voltage;
     private double frequency;

@@ -13,6 +13,8 @@ public class CircuitController {
     private final CircuitModel model;
     private final CircuitPanel view;
     private final CircuitValidator validator;
+    private Components dragging = null;
+    private Point dragOffset = null;
     private ConnectionMode gameMode = CircuitModel.ConnectionMode.SERIES_WITH_BULB;
     
     public CircuitController(CircuitModel model, CircuitPanel view) {
@@ -46,7 +48,6 @@ public class CircuitController {
             @Override
             public void mousePressed(MouseEvent e) {
                 Point p = e.getPoint();
-                view.putClientProperty("pressPoint", p);
                 
                 Tool t = view.toolboxView.hitTool(p);
 
@@ -111,8 +112,8 @@ public class CircuitController {
                     
                     // Dragging logic - only allow dragging if click is within the board
                     if (view.boardRect.contains(p)) {
-                        model.dragging = hit;
-                        model.dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
+                        dragging = hit;
+                        dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
                         handleSelection(hit, e.isControlDown());
                         
                         updateCircuit();
@@ -153,7 +154,7 @@ public class CircuitController {
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                if (model.dragging == null) return;
+                if (dragging == null) return;
                 
                 Point p = e.getPoint();
                 
@@ -161,13 +162,13 @@ public class CircuitController {
                 int clampedX = Math.max(view.boardRect.x, Math.min(view.boardRect.x + view.boardRect.width, p.x));
                 int clampedY = Math.max(view.boardRect.y, Math.min(view.boardRect.y + view.boardRect.height, p.y));
                 
-                Rectangle bounds = model.dragging.getBounds();
+                Rectangle bounds = dragging.getBounds();
                 if (bounds == null) bounds = new Rectangle(0,0,40,40);
 
                 int halfWidth = bounds.width / 2;
                 int halfHeight = bounds.height / 2;
-                int offsetX = (model.dragOffset != null) ? model.dragOffset.x : 0;
-                int offsetY = (model.dragOffset != null) ? model.dragOffset.y : 0;
+                int offsetX = (dragOffset != null) ? dragOffset.x : 0;
+                int offsetY = (dragOffset != null) ? dragOffset.y : 0;
 
                 int nx = clampedX - offsetX;
                 int ny = clampedY - offsetY;
@@ -181,16 +182,16 @@ public class CircuitController {
                 nx = Math.max(minX, Math.min(maxX, nx));
                 ny = Math.max(minY, Math.min(maxY, ny));
 
-                model.dragging.setPosition(nx, ny);
+                dragging.setPosition(nx, ny);
                 updateCircuit();
                 view.paintImmediately(view.getBounds());
             }
             
             @Override
             public void mouseReleased(MouseEvent e) {
-                if (model.dragging != null) {
+                if (dragging != null) {
                     // Component is guaranteed to be within board boundaries due to drag constraints
-                    model.dragging = null;
+                    dragging = null;
                     updateCircuit();
                     view.paintImmediately(view.getBounds());
                 }

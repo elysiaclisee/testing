@@ -103,12 +103,10 @@ public class Circuit {
             root = null;
             return;
         }
-        if (root == null) {
             root = new CompositeComponent("C_root", 0, 0);
             for(Components c : components) {
                 root.add(c);
             }
             root.setMode(CompositeComponent.Mode.SERIES);
-        }
     }
 }

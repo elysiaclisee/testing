@@ -34,21 +34,35 @@ public class FormatUtils {
     
     public static String formatComponentInfo(Components c, double freq) {
         if (c == null) return "None";
+        
+        String staticInfo = "";
+        
+        // 1. Get the static properties (Resistance, Capacitance, etc.)
         if (c instanceof Resistor) {
-            return String.format("R: %s", formatMetric(c.getResistance(), "Ω"));
-        }
-        if (c instanceof Capacitor) {
+            staticInfo = String.format("R: %s", formatMetric(c.getResistance(), "Ω"));
+        } else if (c instanceof Capacitor) {
             double z = c.getImpedance(freq).getMagnitude();
-            return String.format("C: %s (Z: %s)", 
+            staticInfo = String.format("C: %s (Z: %s)", 
                 formatMetric(((Capacitor) c).getCapacitance(), "F"), 
                 formatMetric(z, "Ω"));
-        }
-        if (c instanceof Inductor) {
+        } else if (c instanceof Inductor) {
             double z = c.getImpedance(freq).getMagnitude();
-            return String.format("L: %s (Z: %s)", 
+            staticInfo = String.format("L: %s (Z: %s)", 
                 formatMetric(((Inductor) c).getInductance(), "H"), 
                 formatMetric(z, "Ω"));
+        } else {
+            staticInfo = c.getId();
         }
-        return c.getId();
+
+        // 2. Append the LIVE simulation data (Voltage & Current)
+        // We only show this if there is actually current flowing or voltage present
+        if (c.getVoltageDrop() > 0.001 || c.getCurrentFlow() > 0.001) {
+            String liveInfo = String.format(" | V: %s | I: %s", 
+                formatMetric(c.getVoltageDrop(), "V"),
+                formatMetric(c.getCurrentFlow(), "A"));
+            return staticInfo + liveInfo;
+        }
+        
+        return staticInfo;
     }
 }
