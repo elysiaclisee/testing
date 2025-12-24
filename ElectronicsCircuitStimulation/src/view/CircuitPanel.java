@@ -1,22 +1,21 @@
 package view;
 
 import model.CircuitModel;
-import components.*;
-import utils.Wire;
 import javax.swing.*;
 import java.awt.*;
+import java.util.stream.Stream;
 
 @SuppressWarnings("serial")
 public class CircuitPanel extends JPanel {
-    public final Rectangle boardRect = new Rectangle(20, 150, 1140, 500);
+    public final Rectangle board = new Rectangle(20, 150, 1140, 500);
     public final ToolboxView toolboxView = new ToolboxView();
     public final JButton seriesBtn = new JButton("Series");
     public final JButton parallelBtn = new JButton("Parallel");
     public final JButton undoBtn = new JButton("Undo");
     public final JButton helpBtn = new JButton("Help");
-    public final JLabel instructionLabel = new JLabel("Click two components, then click Series or Parallel to connect.");
-    public final JLabel circuitStatsLabel = new JLabel("Circuit: -");
-    public final JLabel componentValuesLabel = new JLabel("Selection: None");
+    public final JLabel insLabel = new JLabel("Click two components, then click Series or Parallel to connect.");
+    public final JLabel statsLabel = new JLabel("Circuit: -");
+    public final JLabel valueLabel = new JLabel("Selection: None");
     public final JRadioButton rbSeriesBulb = new JRadioButton("Circuit connects series to bulb", true); // Mặc định chọn
     public final JRadioButton rbParallelBulb = new JRadioButton("Circuit connects parallel to bulb");
     public final ButtonGroup modeGroup = new ButtonGroup();
@@ -27,70 +26,71 @@ public class CircuitPanel extends JPanel {
         setLayout(null);
         setBackground(Color.WHITE);
 
-        seriesBtn.setBounds(560, 30, 90, 28);
-        parallelBtn.setBounds(650, 30, 90, 28);
-        undoBtn.setBounds(740, 30, 90, 28);
-        helpBtn.setBounds(830, 30, 90, 28);
-        instructionLabel.setBounds(565, 65, 400, 20);
-        circuitStatsLabel.setBounds(565, 85, 400, 20);
-        componentValuesLabel.setBounds(565, 105, 400, 20);
+        JButton[] buttons = {seriesBtn, parallelBtn, undoBtn, helpBtn};
+        for (int i = 0; i < buttons.length; i++) {
+            buttons[i].setBounds(560 + (i * 90), 30, 90, 28);
+            add(buttons[i]);
+        }
+        
+        JLabel[] label = {insLabel, statsLabel, valueLabel};
+        for (int i = 0; i < label.length; i++) {
+            label[i].setBounds(565, 65 + (i * 20), 400, 20);
+            add(label[i]);
+        }
 
-        instructionLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
-        circuitStatsLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
-        componentValuesLabel.setForeground(new Color(0, 100, 0));
+        insLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        statsLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        valueLabel.setForeground(new Color(0, 100, 0));
         
         rbSeriesBulb.setBounds(950, 30, 250, 28);
         rbParallelBulb.setBounds(950, 70, 250, 28);
         rbSeriesBulb.setBackground(Color.WHITE);
         rbParallelBulb.setBackground(Color.WHITE);
-        
         modeGroup.add(rbSeriesBulb);
         modeGroup.add(rbParallelBulb);
         
-        add(rbSeriesBulb);
-        add(rbParallelBulb);
-        add(seriesBtn);
-        add(parallelBtn);
-        add(undoBtn);
-        add(helpBtn);
-        add(instructionLabel);
-        add(circuitStatsLabel);
-        add(componentValuesLabel);
+        Stream.of(
+        	    rbSeriesBulb, rbParallelBulb, 
+        	    seriesBtn, parallelBtn, undoBtn, helpBtn, 
+        	    insLabel, statsLabel, valueLabel
+        	).forEach(this::add);
+        
         helpBtn.addActionListener(_ -> showHelpWindow());
     }
-    
+
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
+        super.paintComponent(g); //prevent leaving trails if old drawings arent erased
         Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        Stroke originalStroke = g2.getStroke();
-        Color originalColor = g2.getColor();
-
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON); //antialiasing turns on "smoothing
         toolboxView.draw(g2);
+        drawBoard(g2); 
 
+        // We reset the stroke after each item to ensure wires don't make components thick
+        Stroke defaultStroke = g2.getStroke();
+        
+        model.getWires().forEach(w -> { 
+            w.draw(g2); 
+            g2.setStroke(defaultStroke); // SAFETY RESET
+        });
+
+        model.getCircuit().getComponents().forEach(c -> { 
+            c.draw(g2); 
+            g2.setStroke(defaultStroke); // SAFETY RESET
+        }); //want the wire to be easily seen so bold and reset stroke, wire 1st then component 
+
+        g2.setColor(Color.BLACK);
+        g2.drawString("Click toolbox to add. Drag to move. Click two components to select, then connect.", 20, board.y - 6);
+    }
+
+    private void drawBoard(Graphics2D g2) {
         g2.setColor(new Color(245, 255, 245));
-        g2.fill(boardRect);
+        g2.fill(board);
         g2.setColor(Color.GRAY);
-        g2.draw(boardRect);
+        g2.draw(board);
         g2.setFont(g2.getFont().deriveFont(12f));
         g2.setColor(Color.BLACK);
-        g2.drawString("Circuit Board", boardRect.x + 8, boardRect.y + 16);
-
-        for (Wire w : model.getWires()) w.draw(g2);
-
-        g2.setStroke(originalStroke);
-        g2.setColor(originalColor);
-
-        for (Components c : model.getCircuit().getComponents()) {
-            c.draw(g2);
-            g2.setStroke(originalStroke);
-            g2.setColor(originalColor);
-        }
-
-        g2.setColor(Color.BLACK);
-        g2.drawString("Click toolbox to add. Drag to move. Click two components to select, then connect.", 20, boardRect.y - 6);
+        g2.drawString("Circuit Board", board.x + 8, board.y + 16);
     }
     
     private void showHelpWindow() {

@@ -10,7 +10,16 @@ public class BoardTerminal extends Components {
         this.width = 14; 
         this.height = 14;
     }
+    @Override
+    protected Color getFillColor() { 
+    	return Color.BLACK; 
+    }
 
+    @Override
+    protected String getLabel() { 
+    	return id; 
+    }
+    
     @Override
     public void draw(Graphics2D g2) {
         g2.setColor(Color.BLACK);
@@ -29,7 +38,6 @@ public class BoardTerminal extends Components {
         return 0;
     }
 
-    // Cập nhật trả về Complex(0, 0)
     @Override
     public Complex getImpedance(double frequency) {
         return new Complex(0, 0);

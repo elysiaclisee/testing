@@ -21,48 +21,62 @@ public class FormatUtils {
         else if (s.endsWith("0") && s.contains(".")) s = s.substring(0, s.length() - 1);
         return s + " " + prefix + unit;
     }
-    
-    /**
-     * Draw text centered within a rectangle.
-     */
+
     public static void drawCenteredString(Graphics2D g2, String text, Rectangle rect) {
         FontMetrics fm = g2.getFontMetrics();
         int x = rect.x + (rect.width - fm.stringWidth(text)) / 2;
         int y = rect.y + (rect.height - fm.getHeight()) / 2 + fm.getAscent();
         g2.drawString(text, x, y);
-    }
+    } 
+    //only in component drawing(center of the shape), i do think of a situation which i can reuse it outside 
+    //(toolboxview) but since its a different layout it hasnt been feasible
     
     public static String formatComponentInfo(Components c, double freq) {
         if (c == null) return "None";
         
-        String staticInfo = "";
-        
-        // 1. Get the static properties (Resistance, Capacitance, etc.)
+        String in4 = "";
+
         if (c instanceof Resistor) {
-            staticInfo = String.format("R: %s", formatMetric(c.getResistance(), "Ω"));
+            in4 = String.format("R: %s", formatMetric(c.getResistance(), "Ω"));
         } else if (c instanceof Capacitor) {
             double z = c.getImpedance(freq).getMagnitude();
-            staticInfo = String.format("C: %s (Z: %s)", 
+            in4 = String.format("C: %s (Z: %s)", 
                 formatMetric(((Capacitor) c).getCapacitance(), "F"), 
                 formatMetric(z, "Ω"));
         } else if (c instanceof Inductor) {
             double z = c.getImpedance(freq).getMagnitude();
-            staticInfo = String.format("L: %s (Z: %s)", 
+            in4 = String.format("L: %s (Z: %s)", 
                 formatMetric(((Inductor) c).getInductance(), "H"), 
                 formatMetric(z, "Ω"));
         } else {
-            staticInfo = c.getId();
+            in4 = c.getId();
         }
 
-        // 2. Append the LIVE simulation data (Voltage & Current)
-        // We only show this if there is actually current flowing or voltage present
+        //only show this if there is actually current flowing or voltage present
         if (c.getVoltageDrop() > 0.001 || c.getCurrentFlow() > 0.001) {
             String liveInfo = String.format(" | V: %s | I: %s", 
                 formatMetric(c.getVoltageDrop(), "V"),
                 formatMetric(c.getCurrentFlow(), "A"));
-            return staticInfo + liveInfo;
+            return in4 + liveInfo;
         }
         
-        return staticInfo;
+        return in4;
+    }
+    
+    public static String formatBulbStatus(double sourceVoltage, double totalZ, double totalI, 
+                                                 double pBulb, String status) {
+        String formattedStatus = status;
+        if (status.equals("BURNT")) {
+            formattedStatus = "<font color='red'><b>BURNT</b></font>";
+        } else if (status.equals("BRIGHT")) {
+            formattedStatus = "<font color='green'><b>BRIGHT</b></font>";
+        } else if (status.equals("WEAK")) {
+            formattedStatus = "<font color='orange'><b>WEAK</b></font>";
+        } else if (status.equals("OFF")) {
+            formattedStatus = "<font color='gray'><b>OFF</b></font>";
+        }
+        
+        return String.format("<html>V: %.2fV | Z: %.2fΩ | I: %.2fA | Bulb: %.2fW/%.0fW [%s]</html>",
+                sourceVoltage, totalZ, totalI, pBulb, Bulb.P_RATED, formattedStatus);
     }
 }

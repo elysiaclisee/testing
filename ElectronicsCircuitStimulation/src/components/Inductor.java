@@ -1,7 +1,6 @@
 package components;
 
 import utils.Complex;
-import utils.FormatUtils;
 import java.awt.*;
 
 public class Inductor extends Components {
@@ -17,11 +16,13 @@ public class Inductor extends Components {
     }
 
     @Override
-    public void draw(Graphics2D g2) {
-        draw(g2, new Color(200, 200, 255)); 
-        String label = "L: " + FormatUtils.formatMetric(inductance, "H");
-        g2.setFont(g2.getFont().deriveFont(12f));
-        FormatUtils.drawCenteredString(g2, label, new Rectangle(x - width / 2, y - height / 2, width, height));
+    protected Color getFillColor() {
+        return new Color(200, 200, 255);
+    }
+
+    @Override
+    protected String getLabel() {
+        return "L: " + utils.FormatUtils.formatMetric(inductance, "H");
     }
 
     @Override

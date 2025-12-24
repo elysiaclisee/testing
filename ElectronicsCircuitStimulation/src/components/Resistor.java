@@ -1,7 +1,6 @@
 package components;
 
 import utils.Complex;
-import utils.FormatUtils;
 import java.awt.*;
 
 public class Resistor extends Components {
@@ -13,9 +12,13 @@ public class Resistor extends Components {
     }
 
     @Override
-    public void draw(Graphics2D g2) {
-        super.draw(g2);
-        FormatUtils.drawCenteredString(g2, "R: " + FormatUtils.formatMetric(resistance, "Ω"), new Rectangle(x - width/2, y - height/2, width, height));
+    protected Color getFillColor() {
+        return Color.LIGHT_GRAY;
+    }
+
+    @Override
+    protected String getLabel() {
+        return "R: " + utils.FormatUtils.formatMetric(resistance, "Ω");
     }
 
     @Override

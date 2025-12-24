@@ -43,70 +43,48 @@ public class Circuit {
         return root;
     }
 
-    public void connect(Components c1, Components c2, CompositeComponent.Mode mode) {
-        // --- CASE 1: PARALLEL (Create a Group Box) ---
+    public void ungroup(CompositeComponent group) {
+        if (components.contains(group)) {
+            removeComponent(group);
+            for (Components child : group.getChildren()) {
+                addComponent(child); 
+            }
+        }
+    }
+    
+    public CompositeComponent connect(Components c1, Components c2, CompositeComponent.Mode mode) {
         if (mode == CompositeComponent.Mode.PARALLEL) {
-            // 1. Create a list of the parts we are grouping
             List<Components> parts = new ArrayList<>();
             parts.add(c1);
             parts.add(c2);
             
-            // 2. Calculate the center position for the new Group
             int mx = (c1.getPosition().x + c2.getPosition().x) / 2;
             int my = (c1.getPosition().y + c2.getPosition().y) / 2;
             
-            // 3. Create the Composite Component (The Parallel Group)
             String uniqueId = "Group_" + (groupCounter++); 
             CompositeComponent group = new CompositeComponent(uniqueId, mx, my, mode, parts);
             
-            // 4. CRITICAL: Remove the original separate parts from the board list
             components.remove(c1);
             components.remove(c2);
-            
-            // 5. Add the new Group to the board so the View draws it
             components.add(group);
             
-            // 6. Rebuild the physics tree to include this new group
             rebuildCircuit(); 
-            
-        } else {
-            // --- CASE 2: SERIES (Logical Connection Only) ---
-            // For series, we often keep components separate visually (connected by a Wire),
-            // so we just update the logical root tree for calculations.
-            
-            if (root == null) {
-                root = new CompositeComponent("RootSeries", 0, 0);
-                root.add(c1);
-                root.add(c2);
-                root.setMode(mode);
-            } else {
-                // If adding to an existing circuit, wrap the old root
-                CompositeComponent newRoot = new CompositeComponent("NewRoot", 0, 0);
-                newRoot.add(root);
-                
-                // Add the new component that isn't already in the tree
-                // (This is a simplified tree builder; complex circuits might need a more robust graph approach)
-                boolean c1InTree = root.getChildren().contains(c1) || root == c1; // simplified check
-                boolean c2InTree = root.getChildren().contains(c2) || root == c2;
-                
-                if (!c1InTree) newRoot.add(c1);
-                else if (!c2InTree) newRoot.add(c2);
-                
-                newRoot.setMode(mode);
-                root = newRoot;
-            }
-        }
+            return group; 
+        } 
+        return null; 
     }
-
+    
     private void rebuildCircuit() {
-        if (components.size() < 2) {
+        if (components.isEmpty()) {
             root = null;
             return;
         }
-            root = new CompositeComponent("C_root", 0, 0);
-            for(Components c : components) {
-                root.add(c);
-            }
-            root.setMode(CompositeComponent.Mode.SERIES);
+
+        root = new CompositeComponent("C_root", 0, 0);
+        root.setMode(CompositeComponent.Mode.SERIES);
+        
+        for(Components c : components) {
+            root.add(c);
+        }
     }
 }

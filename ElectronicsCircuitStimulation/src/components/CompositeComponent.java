@@ -30,19 +30,66 @@ public class CompositeComponent extends Components {
     }
 
     public void add(Components component) {
-        children.add(component);
-    }
-    
-    public List<Components> getChildren() {
+	    children.add(component);
+	}
+
+	@Override
+	public double getResistance() {
+		return getImpedance(0).getReal();
+	}
+
+	@Override
+	public Rectangle getBounds() {
+	    return new Rectangle(x - width / 2, y - height / 2, width, height);
+	}
+
+	public List<Components> getChildren() {
         return children;
     }
 
-    public void setMode(Mode mode) {
-        this.mode = mode;
-    }
-    
     public Mode getMode() {
-        return mode;
+	    return mode;
+	}
+
+	@Override
+	public Complex getImpedance(double frequency) {
+	    if (children.isEmpty()) return new Complex(1e9, 0); //open circuit
+	
+	    Complex total = children.get(0).getImpedance(frequency);
+	    for (int i = 1; i < children.size(); i++) {
+	        Complex nextZ = children.get(i).getImpedance(frequency);
+	        if (mode == Mode.SERIES) {
+	            total = total.add(nextZ); // Dùng hàm add của Complex
+	        } else {
+	            total = Connections.parallel(total, nextZ); // Dùng hàm parallel của Connections
+	        }
+	    }
+	    return total;
+	}
+
+	@Override
+	public Point getConnectorPoint(Components other) {
+	    if (mode == Mode.PARALLEL) {
+	        if (other != null && other.getPosition().x < this.x) return leftTerm;
+	        else return rightTerm;
+	    }
+	    
+	    // For SERIES, snap to the child closest to the external component
+	    if (children.isEmpty()) return new Point(x,y);
+	    
+	    Point target = (other != null) ? other.getPosition() : new Point(x,y);
+	    Components best = children.get(0);
+	    double minDst = Double.MAX_VALUE;
+	    
+	    for(Components c : children) {
+	        double d = c.getPosition().distance(target);
+	        if(d < minDst) { minDst = d; best = c; }
+	    }
+	    return best.getPosition();
+	}
+
+	public void setMode(Mode mode) {
+        this.mode = mode;
     }
     
     @Override
@@ -57,42 +104,6 @@ public class CompositeComponent extends Components {
         }
     }
 
-    @Override
-    public Point getConnectorPoint(Components other) {
-        if (mode == Mode.PARALLEL) {
-            if (other != null && other.getPosition().x < this.x) return leftTerm;
-            else return rightTerm;
-        }
-        
-        // For SERIES, snap to the child closest to the external component
-        if (children.isEmpty()) return new Point(x,y);
-        
-        Point target = (other != null) ? other.getPosition() : new Point(x,y);
-        Components best = children.get(0);
-        double minDst = Double.MAX_VALUE;
-        
-        for(Components c : children) {
-            double d = c.getPosition().distance(target);
-            if(d < minDst) { minDst = d; best = c; }
-        }
-        return best.getPosition();
-    }
-
-    @Override
-    public Complex getImpedance(double frequency) {
-        if (children.isEmpty()) return new Complex(1e9, 0); //open circuit
-
-        Complex total = children.get(0).getImpedance(frequency);
-        for (int i = 1; i < children.size(); i++) {
-            Complex nextZ = children.get(i).getImpedance(frequency);
-            if (mode == Mode.SERIES) {
-                total = total.add(nextZ); // Dùng hàm add của Complex
-            } else {
-                total = Connections.parallel(total, nextZ); // Dùng hàm parallel của Connections
-            }
-        }
-        return total;
-    }
     @Override
     public void setSimulationState(double voltage, double current, double frequency) {
         super.setSimulationState(voltage, current, frequency); // Store state
@@ -150,8 +161,13 @@ public class CompositeComponent extends Components {
     }
     
     @Override
-    public double getResistance() {
-    	return getImpedance(0).getReal();
+    protected Color getFillColor() {
+        return Color.WHITE; 
+    }
+
+    @Override
+    protected String getLabel() {
+        return "Series"; 
     }
 
     @Override
@@ -159,98 +175,96 @@ public class CompositeComponent extends Components {
         if (children.isEmpty()) return;
 
         if (mode == Mode.SERIES) {
-            // Series Box
-            g2.drawRect(x-20, y-20, 40, 40);
-            g2.drawString("Series", x-15, y+5);
+            // Simple: Use the standard box from parent
+            super.draw(g2);
         } else {
-            // --- PARALLEL RAIL DRAWING ---
-            
-            // 1. Calculate Bounds
-            int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
-            int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
-
-            for (Components c : children) {
-                Rectangle b = c.getBounds();
-                if (b.x < minX) minX = b.x;
-                if (b.x + b.width > maxX) maxX = b.x + b.width;
-                if (b.y < minY) minY = b.y;
-                if (b.y + b.height > maxY) maxY = b.y + b.height;
-            }
-
-            int padding = 30;
-            int railLeft = minX - padding;
-            int railRight = maxX + padding;
-            
-            // Find Top/Bottom Y levels
-            int yTop = minY + (children.get(0).height / 2);
-            int yBot = maxY - (children.get(0).height / 2);
-            if (children.size() >= 2) {
-                 yTop = Math.min(children.get(0).getPosition().y, children.get(1).getPosition().y);
-                 yBot = Math.max(children.get(0).getPosition().y, children.get(1).getPosition().y);
-            }
-
-            // Update Group Center
-            this.x = (railLeft + railRight) / 2;
-            this.y = (yTop + yBot) / 2;
-            this.width = railRight - railLeft;
-            this.height = yBot - yTop;
-
-
-            Stroke originalStroke = g2.getStroke();
-            g2.setStroke(new BasicStroke(1f)); 
-            for (Components c : children) {
-                // Ensure child doesn't think it's selected individually
-                boolean wasSelected = c.selected;
-                c.selected = false; // Temporarily disable child selection visuals
-                c.draw(g2); 
-                c.selected = wasSelected; // Restore state
-            }
-            
-            // 3. Draw Rails (Switch to Bold for the wires)
-            g2.setColor(Color.BLACK);
-            g2.setStroke(new BasicStroke(2f)); 
-
-            for (Components c : children) {
-                int cy = c.getPosition().y;
-                Rectangle b = c.getBounds();
-                
-                // Left Rail -> Component
-                g2.drawLine(railLeft, cy, b.x, cy);
-                // Component -> Right Rail
-                g2.drawLine(b.x + b.width, cy, railRight, cy);
-            }
-
-            // Vertical Connectors
-            g2.drawLine(railLeft, yTop, railLeft, yBot);
-            g2.drawLine(railRight, yTop, railRight, yBot);
-
-            // Connectable Dots
-            int midY = (yTop + yBot) / 2;
-            int dotSize = 10;
-            leftTerm = new Point(railLeft, midY);
-            rightTerm = new Point(railRight, midY);
-
-            g2.fillOval(leftTerm.x - dotSize/2, leftTerm.y - dotSize/2, dotSize, dotSize);
-            g2.fillOval(rightTerm.x - dotSize/2, rightTerm.y - dotSize/2, dotSize, dotSize);
-            
-            // Restore original stroke
-            g2.setStroke(originalStroke);
+            // Complex: Delegate to helper
+            drawParallel(g2);
         }
         
+        // Common: Draw selection highlight if needed
         if (selected) {
             g2.setColor(Color.BLACK);
-            g2.setStroke(new BasicStroke(2f)); // Standard bold selection
+            g2.setStroke(new BasicStroke(2f));
             
             int selPadding = 8;
             g2.drawRect(x - width/2 - selPadding, y - height/2 - selPadding, 
                         width + (selPadding*2), height + (selPadding*2));
                         
-            g2.setStroke(new BasicStroke(1f)); // Reset
+            g2.setStroke(new BasicStroke(1f)); 
         }
     }
+    
+    private void drawParallel(Graphics2D g2) {
+        // --- 1. CALCULATE BOUNDS ---
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
 
-    @Override
-    public Rectangle getBounds() {
-        return new Rectangle(x - width / 2, y - height / 2, width, height);
+        for (Components c : children) {
+            Rectangle b = c.getBounds();
+            if (b.x < minX) minX = b.x;
+            if (b.x + b.width > maxX) maxX = b.x + b.width;
+            if (b.y < minY) minY = b.y;
+            if (b.y + b.height > maxY) maxY = b.y + b.height;
+        }
+
+        int padding = 30;
+        int railLeft = minX - padding;
+        int railRight = maxX + padding;
+        
+        // Determine rail height based on first two children (or raw bounds)
+        int yTop = minY + (children.get(0).height / 2);
+        int yBot = maxY - (children.get(0).height / 2);
+        if (children.size() >= 2) {
+             yTop = Math.min(children.get(0).getPosition().y, children.get(1).getPosition().y);
+             yBot = Math.max(children.get(0).getPosition().y, children.get(1).getPosition().y);
+        }
+
+        // --- 2. UPDATE GROUP CENTER (The "Container" Box) ---
+        this.x = (railLeft + railRight) / 2;
+        this.y = (yTop + yBot) / 2;
+        this.width = railRight - railLeft;
+        this.height = yBot - yTop;
+
+        // --- 3. DRAW CHILDREN ---
+        Stroke originalStroke = g2.getStroke();
+        g2.setStroke(new BasicStroke(1f)); 
+        
+        for (Components c : children) {
+            // Hack: Temporarily disable selection so child draws "plain" inside the group
+            boolean wasSelected = c.isSelected();
+            c.setSelected(false); 
+            c.draw(g2); 
+            c.setSelected(wasSelected);
+        }
+        
+        // --- 4. DRAW RAILS & CONNECTORS ---
+        g2.setColor(Color.BLACK);
+        g2.setStroke(new BasicStroke(2f)); 
+
+        for (Components c : children) {
+            int cy = c.getPosition().y;
+            Rectangle b = c.getBounds();
+            // Horizontal Rungs
+            g2.drawLine(railLeft, cy, b.x, cy);
+            g2.drawLine(b.x + b.width, cy, railRight, cy);
+        }
+
+        // Vertical Rails
+        g2.drawLine(railLeft, yTop, railLeft, yBot);
+        g2.drawLine(railRight, yTop, railRight, yBot);
+
+        // Connection Dots
+        int midY = (yTop + yBot) / 2;
+        int dotSize = 10;
+        
+        // Update terminal points so wires know where to connect
+        this.leftTerm = new Point(railLeft, midY);
+        this.rightTerm = new Point(railRight, midY);
+
+        g2.fillOval(leftTerm.x - dotSize/2, leftTerm.y - dotSize/2, dotSize, dotSize);
+        g2.fillOval(rightTerm.x - dotSize/2, rightTerm.y - dotSize/2, dotSize, dotSize);
+        
+        g2.setStroke(originalStroke);
     }
 }

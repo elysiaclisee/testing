@@ -3,7 +3,7 @@ package components;
 import utils.Complex;
 import utils.FormatUtils;
 import java.awt.*;
-import java.awt.geom.Rectangle2D;
+
 //icon on toolbar only, for future development and extension
 public class PowerSource extends Components {
     private double voltage;
@@ -19,22 +19,34 @@ public class PowerSource extends Components {
 
     @Override
     public void draw(Graphics2D g2) {
-        draw(g2, java.awt.Color.GREEN);
-        g2.setFont(g2.getFont().deriveFont(Font.PLAIN, 12f));
-        String vLabel = FormatUtils.formatMetric(voltage, "V");
-        String fLabel = FormatUtils.formatMetric(frequency, "Hz");
-        FontMetrics fm = g2.getFontMetrics();
-        Rectangle2D vBounds = fm.getStringBounds(vLabel, g2);
-        Rectangle2D fBounds = fm.getStringBounds(fLabel, g2);
-        int vx = x - (int) vBounds.getWidth() / 2;
-        int vy = y - 2;
-        int fx = x - (int) fBounds.getWidth() / 2;
-        int fy = y + fm.getAscent() + 2;
-        g2.setColor(java.awt.Color.BLACK);
-        g2.drawString(vLabel, vx, vy);
-        g2.drawString(fLabel, fx, fy);
-    }
+            super.draw(g2);
+            
+            g2.setColor(Color.BLACK);
+            g2.setFont(g2.getFont().deriveFont(Font.PLAIN, 12f));
+            
+            String vLabel = FormatUtils.formatMetric(voltage, "V");
+            String fLabel = FormatUtils.formatMetric(frequency, "Hz");
+            
+            FontMetrics fm = g2.getFontMetrics();
+            int vx = x - (int) fm.getStringBounds(vLabel, g2).getWidth() / 2;
+            int vy = y - 2;
+            int fx = x - (int) fm.getStringBounds(fLabel, g2).getWidth() / 2;
+            int fy = y + fm.getAscent() + 2;
+            
+            g2.drawString(vLabel, vx, vy);
+            g2.drawString(fLabel, fx, fy);
+        }
 
+    @Override
+    protected String getLabel() {
+        return ""; 
+    }
+    
+    @Override
+    protected Color getFillColor() {
+        return Color.GREEN;
+    }
+    
     @Override
     public double getResistance() {
         return 0;

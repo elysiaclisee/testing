@@ -15,7 +15,7 @@ public class CircuitController {
     private final CircuitValidator validator;
     private Components dragging = null;
     private Point dragOffset = null;
-    private ConnectionMode gameMode = CircuitModel.ConnectionMode.SERIES_WITH_BULB;
+    private ConnectionMode gameMode = CircuitModel.ConnectionMode.BULBSERIES;
     
     public CircuitController(CircuitModel model, CircuitPanel view) {
         this.model = model;
@@ -24,9 +24,9 @@ public class CircuitController {
         
         ActionListener modeListener = _ -> {
             if (view.rbSeriesBulb.isSelected()) {
-                this.gameMode = ConnectionMode.SERIES_WITH_BULB;
+                this.gameMode = ConnectionMode.BULBSERIES;
             } else {
-                this.gameMode = ConnectionMode.PARALLEL_WITH_BULB;
+                this.gameMode = ConnectionMode.BULBPARALLEL;
             }
             updateCircuit(); 
         };
@@ -34,9 +34,9 @@ public class CircuitController {
         view.rbSeriesBulb.addActionListener(modeListener);
         view.rbParallelBulb.addActionListener(modeListener);        
         // Setup Terminals
-        int midY = view.boardRect.y + view.boardRect.height / 2;
-        model.termLeft.setPosition(view.boardRect.x, midY);
-        model.termRight.setPosition(view.boardRect.x + view.boardRect.width, midY);
+        int midY = view.board.y + view.board.height / 2;
+        model.termLeft.setPosition(view.board.x, midY);
+        model.termRight.setPosition(view.board.x + view.board.width, midY);
         view.repaint();
 
         // Listeners
@@ -53,10 +53,10 @@ public class CircuitController {
 
                 // --- CASE 1: Power Source Tool (Updates Global Settings) ---
                 if (t == Tool.POWER_SOURCE) {
-                    double[] vals = view.toolboxView.promptForPowerSource();
+                    double[] vals = view.toolboxView.promptPower();
                     if (vals == null) return; 
 
-                    view.toolboxView.updatePowerSourceDisplay(vals[0], vals[1]);
+                    view.toolboxView.updatePower(vals[0], vals[1]);
                     model.circuit.setPowerSupply(vals[0], vals[1]);
 
                     updateCircuit();
@@ -67,8 +67,8 @@ public class CircuitController {
                 // --- CASE 2: Component Tools (Creates new parts) ---
                 if (t != null) {
                     Components newComponent = null;
-                    int spawnX = view.boardRect.x + view.boardRect.width / 2;
-                    int spawnY = view.boardRect.y + view.boardRect.height / 2;
+                    int spawnX = view.board.x + view.board.width / 2;
+                    int spawnY = view.board.y + view.board.height / 2;
                     
                     switch (t) {
                         case RESISTOR:
@@ -93,7 +93,8 @@ public class CircuitController {
                     }
                     
                     if (newComponent != null) {
-                        model.addComponent(newComponent);
+                        model.circuit.addComponent(newComponent);
+                        model.addActionToUndoStack(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, newComponent));
                         updateCircuit();
                         view.repaint();
                     }
@@ -111,7 +112,7 @@ public class CircuitController {
                     }
                     
                     // Dragging logic - only allow dragging if click is within the board
-                    if (view.boardRect.contains(p)) {
+                    if (view.board.contains(p)) {
                         dragging = hit;
                         dragOffset = new Point(p.x - hit.getPosition().x, p.y - hit.getPosition().y);
                         handleSelection(hit, e.isControlDown());
@@ -123,7 +124,7 @@ public class CircuitController {
                 }
                 
                 // --- CASE 4: Clicking Empty Board (Deselect) ---
-                if (view.boardRect.contains(p)) {
+                if (view.board.contains(p)) {
                     clearSelection();
                     updateCircuit();
                     view.repaint();
@@ -159,8 +160,8 @@ public class CircuitController {
                 Point p = e.getPoint();
                 
                 // First, clamp the mouse position itself to the board boundaries
-                int clampedX = Math.max(view.boardRect.x, Math.min(view.boardRect.x + view.boardRect.width, p.x));
-                int clampedY = Math.max(view.boardRect.y, Math.min(view.boardRect.y + view.boardRect.height, p.y));
+                int clampedX = Math.max(view.board.x, Math.min(view.board.x + view.board.width, p.x));
+                int clampedY = Math.max(view.board.y, Math.min(view.board.y + view.board.height, p.y));
                 
                 Rectangle bounds = dragging.getBounds();
                 if (bounds == null) bounds = new Rectangle(0,0,40,40);
@@ -174,10 +175,10 @@ public class CircuitController {
                 int ny = clampedY - offsetY;
 
                 // Ensure the component stays fully within board boundaries
-                int minX = view.boardRect.x + halfWidth;
-                int maxX = view.boardRect.x + view.boardRect.width - halfWidth;
-                int minY = view.boardRect.y + halfHeight;
-                int maxY = view.boardRect.y + view.boardRect.height - halfHeight;
+                int minX = view.board.x + halfWidth;
+                int maxX = view.board.x + view.board.width - halfWidth;
+                int minY = view.board.y + halfHeight;
+                int maxY = view.board.y + view.board.height - halfHeight;
 
                 nx = Math.max(minX, Math.min(maxX, nx));
                 ny = Math.max(minY, Math.min(maxY, ny));
@@ -216,37 +217,19 @@ public class CircuitController {
 
             clearSelection();
 
+            model.connectComponent(c1, c2, mode);
+
             if (mode == CompositeComponent.Mode.PARALLEL) {
-                model.circuit.connect(c1, c2, mode);
-
-                // Find the newly created group for the Undo Stack
-                CompositeComponent newGroup = null;
-                for (Components comp : model.circuit.getComponents()) {
-                    if (comp instanceof CompositeComponent) {
-                        CompositeComponent cc = (CompositeComponent) comp;
-                        if (cc.getMode() == CompositeComponent.Mode.PARALLEL && 
-                            cc.getChildren().contains(c1) && cc.getChildren().contains(c2)) {
-                            newGroup = cc;
-                            break;
-                        }
-                    }
-                }
-                
-                if (newGroup != null) {
-                    model.addActionToUndoStack(new CircuitAction(CircuitAction.ActionType.ADD_COMPONENT, newGroup));
-                }
-                view.instructionLabel.setText("Parallel connection created.");
-
+                view.insLabel.setText("Parallel connection created.");
             } else {
-                model.addWire(c1, c2, Wire.Type.SERIES);
-                view.instructionLabel.setText("Series connection created.");
+                view.insLabel.setText("Series connection created.");
             }
 
             updateCircuit();
             view.paintImmediately(view.getBounds());
 
         } catch (CircuitValidationException e) {
-            view.instructionLabel.setText(e.getMessage());
+            view.insLabel.setText(e.getMessage());
         }
     }
 
@@ -258,7 +241,7 @@ public class CircuitController {
         int right = validator.getConnectionCount(model.termRight);
         
         if (left == 0 || right == 0) {
-            view.circuitStatsLabel.setText("Circuit incomplete: Connect both terminals");
+            view.statsLabel.setText("Circuit incomplete: Connect both terminals");
             updateComponentDetailsLabel(freq);
             
             // Reset state for visual feedback
@@ -275,7 +258,7 @@ public class CircuitController {
         model.updatePhysics(gameMode);
         
         // 3. Update UI
-        view.circuitStatsLabel.setText(model.getSimulationStatus());
+        view.statsLabel.setText(model.getSimulationStatus());
         updateComponentDetailsLabel(freq);
         view.repaint();
     }
@@ -288,7 +271,7 @@ public class CircuitController {
         } else {
             info += "None";
         }
-        view.componentValuesLabel.setText(info);
+        view.valueLabel.setText(info);
     }
     
     private void clearSelection() {

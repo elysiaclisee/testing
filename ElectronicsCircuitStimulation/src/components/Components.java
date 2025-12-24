@@ -3,9 +3,6 @@ package components;
 import utils.Complex;
 import java.awt.*;
 
-/**
- * Base class for a component placed on the board.
- */
 public abstract class Components {
     protected int x, y; // center position
     protected int width = 60;
@@ -14,6 +11,8 @@ public abstract class Components {
     protected String id;
     protected double voltageDrop = 0.0;
     protected double currentFlow = 0.0;
+    protected abstract Color getFillColor();
+    protected abstract String getLabel();
 
     public Components(String id, int x, int y) {
         this.id = id;
@@ -66,10 +65,6 @@ public abstract class Components {
         return selected;
     }
     
-    public void draw(Graphics2D g2) {
-        draw(g2, Color.LIGHT_GRAY);
-    }
-    
     public boolean contains(Point p) {
         Rectangle r = new Rectangle(x - width/2, y - height/2, width, height);
         return r.contains(p);
@@ -87,20 +82,25 @@ public abstract class Components {
             }
             g2.setStroke(new BasicStroke(1));
         }
-    }
+    } //later can inherit for different shapes 
 
-    public void draw(Graphics2D g2, Color fillColor) {
+    public void draw(Graphics2D g2) {
         int w = width;
         int h = height;
         int left = x - w / 2;
         int top = y - h / 2;
+        Rectangle rect = new Rectangle(left, top, w, h);
 
-        g2.setColor(fillColor);
-        g2.fillRoundRect(left, top, w, h, 8, 8);
+        g2.setColor(getFillColor());
+        g2.fillRect(left, top, w, h);
+        
         g2.setColor(Color.BLACK);
-        g2.drawRoundRect(left, top, w, h, 8, 8);
+        g2.drawRect(left, top, w, h);
 
         drawSelection(g2);
+
+        g2.setFont(g2.getFont().deriveFont(12f)); 
+        utils.FormatUtils.drawCenteredString(g2, getLabel(), rect); //centered text
     }
 
     public Point getConnectorPoint(Components other) {

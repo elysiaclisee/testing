@@ -1,7 +1,6 @@
 package components;
 
 import utils.Complex;
-import utils.FormatUtils;
 import java.awt.*;
 
 public class Capacitor extends Components {
@@ -24,13 +23,15 @@ public class Capacitor extends Components {
     }
 
     @Override
-    public void draw(Graphics2D g2) {
-        draw(g2, Color.CYAN);
-        g2.setColor(Color.BLACK);
-        g2.setFont(g2.getFont().deriveFont(12f));
-        String label = "C: " + FormatUtils.formatMetric(capacitance, "F");
-        FormatUtils.drawCenteredString(g2, label, new Rectangle(x-width/2, y-height/2, width, height));
+    protected Color getFillColor() {
+        return Color.CYAN;
     }
+
+    @Override
+    protected String getLabel() {
+        return "C: " + utils.FormatUtils.formatMetric(capacitance, "F");
+    }
+    
     public double getCapacitance() {
         return capacitance;
     }
